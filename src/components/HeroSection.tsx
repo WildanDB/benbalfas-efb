@@ -152,12 +152,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   };
 
   return (
-    <section className="relative overflow-hidden pt-8 pb-16 lg:pt-16 lg:pb-24">
+    <section className="relative overflow-hidden w-full max-w-full pt-6 pb-12 sm:pt-8 sm:pb-16 lg:pt-16 lg:pb-24">
       {/* Authentic eFootball Stadium & Soccer Pitch Tactical Background Overlay */}
-      <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden w-full max-w-full">
         {/* Stadium Light Cones */}
-        <div className="absolute -top-24 left-1/4 w-[500px] h-[500px] bg-cyan-500/15 dark:bg-cyan-500/15 rounded-full blur-[110px]"></div>
-        <div className="absolute -top-20 right-1/4 w-[500px] h-[500px] bg-indigo-500/15 dark:bg-purple-600/15 rounded-full blur-[110px]"></div>
+        <div className="absolute -top-24 left-1/4 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-cyan-500/15 dark:bg-cyan-500/15 rounded-full blur-[90px] sm:blur-[110px]"></div>
+        <div className="absolute -top-20 right-1/4 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-indigo-500/15 dark:bg-purple-600/15 rounded-full blur-[90px] sm:blur-[110px]"></div>
 
         {/* eFootball Tactical Pitch Lines (Center Circle & Penalty Box Vector) */}
         <svg
@@ -193,30 +193,30 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         </svg>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-12 gap-12 items-center">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full min-w-0 max-w-full">
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center w-full min-w-0 max-w-full">
           {/* Left Column: High-Converting Copywriting */}
-          <div className="lg:col-span-7 space-y-8 text-center lg:text-left">
+          <div className="lg:col-span-7 space-y-6 sm:space-y-8 text-center lg:text-left w-full min-w-0 max-w-full">
             {/* Top Badge: eFootball Platform Support */}
-            <div className="inline-flex flex-wrap items-center justify-center lg:justify-start gap-2 px-4 py-2 rounded-full bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/30 text-cyan-800 dark:text-cyan-300 text-xs sm:text-sm font-bold shadow-sm">
+            <div className="inline-flex flex-wrap items-center justify-center lg:justify-start gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/30 text-cyan-800 dark:text-cyan-300 text-xs sm:text-sm font-bold shadow-sm max-w-full">
               <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-                <span>eFootball 2026 Joki Service</span>
+                <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                <span className="truncate">eFootball 2026 Joki Service</span>
               </span>
               <span className="hidden sm:inline text-slate-400">•</span>
-              <span className="flex items-center gap-1 text-[11px] font-mono text-slate-600 dark:text-slate-300">
+              <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono text-slate-600 dark:text-slate-300">
                 🎮 Steam • PlayStation • Xbox
               </span>
             </div>
 
             {/* Main Headline */}
-            <div className="space-y-4">
-              <h1 className="font-display font-black text-4xl sm:text-5xl lg:text-6xl text-slate-900 dark:text-white tracking-tight leading-[1.12]">
+            <div className="space-y-3 sm:space-y-4">
+              <h1 className="font-display font-black text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-slate-900 dark:text-white tracking-tight leading-[1.15] break-words">
                 Capek Dikerjain{" "}
                 <span className="bg-gradient-to-r from-red-500 via-orange-500 to-amber-500 bg-clip-text text-transparent">
                   Script?
                 </span>
-                . <br />
+                . <br className="hidden sm:inline" />
                 Biar Kita yang{" "}
                 <span className="bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 dark:from-cyan-400 dark:via-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
                   Push Akun Kamu ke Divisi 1
@@ -224,7 +224,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 .
               </h1>
 
-              <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
+              <p className="text-sm sm:text-base lg:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
                 Mau rank naik tinggi tapi malas capek grinding atau kesal kena
                 script game? Percayakan pada Benbalfas.
                 <strong className="text-slate-900 dark:text-white">
@@ -237,54 +237,54 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             </div>
 
             {/* Platform Quick Badges */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 pt-1">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1.5 sm:gap-2 pt-1">
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">
                 Platform Tersedia:
               </span>
-              <span className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-slate-800 dark:text-slate-200 shadow-sm">
+              <span className="px-2.5 sm:px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-mono font-bold text-slate-800 dark:text-slate-200 shadow-sm">
                 💻 Steam (PC)
               </span>
-              <span className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-blue-600 dark:text-blue-400 shadow-sm">
+              <span className="px-2.5 sm:px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-mono font-bold text-blue-600 dark:text-blue-400 shadow-sm">
                 🎮 PlayStation (PS4/PS5)
               </span>
-              <span className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 shadow-sm">
+              <span className="px-2.5 sm:px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 shadow-sm">
                 🟢 Xbox One / Series
               </span>
             </div>
 
             {/* Quick Trust Pills */}
-            <div className="flex flex-wrap justify-center lg:justify-start gap-2.5 sm:gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-semibold">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                <span>Garansi Anti-Banned & IP Lokal</span>
+            <div className="flex flex-wrap justify-center lg:justify-start gap-2 sm:gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-semibold">
+              <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
+                <span className="text-[11px] sm:text-xs">Garansi Anti-Banned & IP Lokal</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
-                <CheckCircle2 className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-                <span>Harga Transparan Mulai 700/pt</span>
+              <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                <span className="text-[11px] sm:text-xs">Harga Transparan Mulai 700/pt</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
-                <CheckCircle2 className="w-4 h-4 text-amber-500" />
-                <span>Handover OTP WhatsApp Cepat</span>
+              <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
+                <span className="text-[11px] sm:text-xs">Handover OTP WhatsApp Cepat</span>
               </div>
             </div>
 
             {/* CTA Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2">
               <button
                 onClick={onNavigateToJoki}
-                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-display font-extrabold text-base rounded-2xl shadow-glow-cyan transform hover:-translate-y-0.5 active:translate-y-0 transition flex items-center justify-center gap-3 cursor-pointer"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-display font-extrabold text-sm sm:text-base rounded-2xl shadow-glow-cyan transform hover:-translate-y-0.5 active:translate-y-0 transition flex items-center justify-center gap-2.5 cursor-pointer"
               >
-                <Zap className="w-5 h-5 fill-current" />
-                Hitung Harga Joki (Kalkulator)
-                <ArrowRight className="w-5 h-5" />
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-current shrink-0" />
+                <span>Hitung Harga Joki (Kalkulator)</span>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
               </button>
 
               <button
                 onClick={onNavigateToTrophy}
-                className="w-full sm:w-auto px-6 py-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/90 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-base rounded-2xl border border-slate-200 dark:border-slate-700/80 transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                className="w-full sm:w-auto px-5 sm:px-6 py-3.5 sm:py-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/90 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm sm:text-base rounded-2xl border border-slate-200 dark:border-slate-700/80 transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
               >
-                <Trophy className="w-5 h-5 text-amber-500" />
-                Lihat Bukti Portofolio
+                <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 shrink-0" />
+                <span>Lihat Bukti Portofolio</span>
               </button>
             </div>
 
@@ -306,7 +306,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 ))}
               </div>
               <div>
-                <div className="flex items-center gap-1 text-amber-500 font-bold">
+                <div className="flex items-center gap-1 text-amber-500 font-bold justify-center sm:justify-start">
                   {[...Array(5)].map((_, i) => (
                     <Star key={i} className="w-3.5 h-3.5 fill-current" />
                   ))}
@@ -323,26 +323,26 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </div>
 
           {/* Right Column: DATA JOKI TERAKHIR */}
-          <div className="lg:col-span-5">
-            <div className="relative">
+          <div className="lg:col-span-5 w-full min-w-0 max-w-full">
+            <div className="relative w-full min-w-0 max-w-full">
               {/* Card Container with eFootball subtle border styling */}
-              <div className="relative rounded-3xl p-1 bg-gradient-to-b from-cyan-500/30 via-indigo-500/20 to-slate-300 dark:to-slate-800 shadow-xl dark:shadow-2xl">
-                <div className="rounded-[22px] bg-white dark:bg-[#0c121e] p-6 space-y-6 border border-slate-200 dark:border-slate-800/60 backdrop-blur-md">
+              <div className="relative rounded-2xl sm:rounded-3xl p-0.5 sm:p-1 bg-gradient-to-b from-cyan-500/30 via-indigo-500/20 to-slate-300 dark:to-slate-800 shadow-xl dark:shadow-2xl w-full min-w-0 max-w-full">
+                <div className="rounded-[18px] sm:rounded-[22px] bg-white dark:bg-[#0c121e] p-3.5 sm:p-5 md:p-6 space-y-4 sm:space-y-5 border border-slate-200 dark:border-slate-800/60 backdrop-blur-md w-full min-w-0 max-w-full">
                   {/* Header: DATA JOKI TERAKHIR */}
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 pb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl overflow-hidden border border-cyan-500/30 shadow-sm bg-slate-900">
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 pb-3 sm:pb-4 gap-2 min-w-0">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl overflow-hidden border border-cyan-500/30 shadow-sm bg-slate-900 shrink-0">
                         <img
                           src="/images/logo/logo.webp"
                           alt="Benbalfas eFootball"
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <div>
-                        <h4 className="font-display font-extrabold text-base text-slate-900 dark:text-white">
+                      <div className="min-w-0">
+                        <h4 className="font-display font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
                           Data Joki Terakhir
                         </h4>
-                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
+                        <p className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-medium truncate">
                           Update Riwayat Pengerjaan Klien
                         </p>
                       </div>
@@ -352,102 +352,106 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     {isAdmin && (
                       <button
                         onClick={() => setIsEditModalOpen(true)}
-                        className="p-1.5 px-2.5 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-xs font-bold flex items-center gap-1 border border-cyan-500/30"
+                        className="p-1.5 px-2 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[11px] font-bold flex items-center gap-1 border border-cyan-500/30 shrink-0"
                         title="Edit Data Joki (Owner Mode)"
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>Update Data</span>
+                        <Edit2 className="w-3 h-3" />
+                        <span className="hidden xs:inline">Update</span>
                       </button>
                     )}
                   </div>
 
                   {/* Active Joki Selector Tabs */}
-                  <div className="flex gap-1.5 overflow-x-auto pb-1">
-                    {recentJokis.map((item, idx) => (
-                      <button
-                        key={item.id}
-                        onClick={() => setActiveJokiIndex(idx)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition ${
-                          activeJokiIndex === idx
-                            ? "bg-cyan-500 text-white font-bold shadow-sm"
-                            : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                        }`}
-                      >
-                        {item.clientName.split(" ")[0]} ({item.status})
-                      </button>
-                    ))}
+                  <div className="w-full min-w-0 max-w-full overflow-hidden">
+                    <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-none w-full min-w-0">
+                      {recentJokis.map((item, idx) => (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveJokiIndex(idx)}
+                          className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-medium whitespace-nowrap transition shrink-0 ${
+                            activeJokiIndex === idx
+                              ? "bg-cyan-500 text-white font-bold shadow-sm"
+                              : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                          }`}
+                        >
+                          {item.clientName.split(" ")[0]} ({item.status})
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Active Joki Showcase Card */}
-                  <div className="bg-slate-50 dark:bg-slate-900/90 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 space-y-3">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-700 dark:text-slate-200">
+                  <div className="bg-slate-50 dark:bg-slate-900/90 rounded-2xl p-3 sm:p-4 border border-slate-200 dark:border-slate-800 space-y-2.5 sm:space-y-3 w-full min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[55%] sm:max-w-none">
                         {currentJoki.clientName}
                       </span>
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30">
+                      <span className="text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30 shrink-0">
                         {currentJoki.status} • {currentJoki.date}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-400">
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-400 truncate min-w-0">
                         {currentJoki.packageName}
                       </p>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold shrink-0">
                         {currentJoki.platform
                           ? currentJoki.platform.toUpperCase()
                           : "STEAM/CONSOLE"}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1">
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-mono">
+                    {/* Rating Progression Metric (Responsive 3-Column Grid) */}
+                    <div className="grid grid-cols-3 items-center gap-1 sm:gap-2 pt-1 text-center bg-white/70 dark:bg-slate-950/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 w-full min-w-0">
+                      {/* Initial Points */}
+                      <div className="text-left min-w-0">
+                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono uppercase tracking-wider truncate">
                           Poin Awal
                         </p>
-                        <p className="text-lg font-bold font-mono text-slate-800 dark:text-slate-200">
-                          {currentJoki.initialRating} Pts
+                        <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-slate-900 dark:text-slate-100 truncate">
+                          {currentJoki.initialRating} <span className="text-[10px] font-normal text-slate-400">Pts</span>
                         </p>
                       </div>
 
-                      <div className="flex flex-col items-center">
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold font-mono">
-                          +
-                          {currentJoki.targetRating - currentJoki.initialRating}{" "}
-                          Pts ⚡️
+                      {/* Middle Diff + Progress Bar */}
+                      <div className="flex flex-col items-center justify-center px-0.5 min-w-0">
+                        <span className="text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold font-mono whitespace-nowrap">
+                          +{currentJoki.targetRating - currentJoki.initialRating} ⚡️
                         </span>
-                        <div className="w-20 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full my-1 overflow-hidden">
+                        <div className="w-full max-w-[65px] sm:max-w-[85px] h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full my-1 overflow-hidden">
                           <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-full animate-pulse"></div>
                         </div>
-                        <span className="text-[10px] text-slate-500 font-mono">
+                        <span className="text-[9px] sm:text-[10px] text-slate-500 font-mono truncate">
                           {currentJoki.duration}
                         </span>
                       </div>
 
-                      <div className="text-right">
-                        <p className="text-[10px] text-amber-500 font-mono">
+                      {/* Target Points */}
+                      <div className="text-right min-w-0">
+                        <p className="text-[9px] sm:text-[10px] text-amber-500 font-mono uppercase tracking-wider truncate">
                           Hasil Akhir
                         </p>
-                        <p className="text-lg font-bold font-mono text-amber-500 dark:text-amber-300">
-                          {currentJoki.targetRating} Pts
+                        <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-amber-500 dark:text-amber-300 truncate">
+                          {currentJoki.targetRating} <span className="text-[10px] font-normal">Pts</span>
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Highlight All-In Package Banner */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 font-bold">
+                  <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full min-w-0">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 font-bold">
                         <span>⭐️ PAKET ALL-IN</span>
-                        <span className="bg-amber-500 text-black text-[9px] px-1.5 py-0.5 rounded font-black">
+                        <span className="bg-amber-500 text-black text-[9px] px-1.5 py-0.5 rounded font-black shrink-0">
                           DISKON 10%
                         </span>
-                        <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                        <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
                           PROMO 3 KLIEN
                         </span>
                       </div>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+                      <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mt-1 truncate">
                         Divisi 1 + Sapu Bersih Event
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
@@ -467,29 +471,29 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       onClick={() =>
                         onOpenCheckout("package", "sultan-phase-clear")
                       }
-                      className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-display font-extrabold text-xs rounded-xl shadow-glow-gold hover:scale-105 transition text-center shrink-0"
+                      className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-display font-extrabold text-xs rounded-xl shadow-glow-gold hover:scale-105 transition text-center shrink-0 cursor-pointer"
                     >
                       Pesan Promo 135k
                     </button>
                   </div>
 
                   {/* Stats Footer */}
-                  <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
-                      <p className="text-[10px] text-slate-500">Ban Rate</p>
-                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-1 text-center w-full min-w-0">
+                    <div className="p-1.5 sm:p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 min-w-0">
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 truncate">Ban Rate</p>
+                      <p className="text-[11px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono truncate">
                         0.00% (Aman)
                       </p>
                     </div>
-                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
-                      <p className="text-[10px] text-slate-500">Tarif Mulai</p>
-                      <p className="text-xs font-bold text-cyan-600 dark:text-cyan-400 font-mono">
+                    <div className="p-1.5 sm:p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 min-w-0">
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 truncate">Tarif Mulai</p>
+                      <p className="text-[11px] sm:text-xs font-bold text-cyan-600 dark:text-cyan-400 font-mono truncate">
                         Rp 700/pt
                       </p>
                     </div>
-                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
-                      <p className="text-[10px] text-slate-500">Success Rate</p>
-                      <p className="text-xs font-extrabold text-amber-600 font-mono">
+                    <div className="p-1.5 sm:p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 min-w-0">
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 truncate">Success Rate</p>
+                      <p className="text-[11px] sm:text-xs font-extrabold text-amber-600 font-mono truncate">
                         100%
                       </p>
                     </div>
@@ -503,8 +507,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
       {/* Modal: Tambah / Update Data Joki Terakhir (Owner Only) */}
       {isAdmin && isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-[#0c121e] border border-slate-200 dark:border-slate-700 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl text-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+          <div className="bg-white dark:bg-[#0c121e] border border-slate-200 dark:border-slate-700 rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 space-y-4 shadow-2xl text-xs max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">
                 Tambah / Update Data Joki Terakhir (Owner Mode)

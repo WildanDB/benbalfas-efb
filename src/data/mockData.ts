@@ -176,26 +176,6 @@ export const INITIAL_CASE_STUDIES: CaseStudy[] = [
     clientFeedback:
       '"Cepat dan ramah kantong. Cuma 2 hari udah sampe top tier. Rekomended buat siapa saja yang mau rank naik tanpa pusing."',
   },
-  {
-    id: "cs-4",
-    title: "Rating 1800 ke 2050 Bracket Push High MMR",
-    clientName: "Kevin T. (Tangerang)",
-    initialRating: 1800,
-    targetRating: 2050,
-    division: "Divisi 1 Top Tier",
-    winStreak: 12,
-    winRate: "91.5%",
-    slaActual: "2 Hari",
-    tactics: "Long Ball Counter 5-2-1-2 Defensive Transition",
-    description:
-      "Push di bracket 1900-2050 membutuhkan ketenangan mental dan gameplay flawless. Berhasil amankan tiket leaderboard global dengan aman.",
-    image:
-      "https://images.unsplash.com/photo-1534423861386-85a16f5d13fd?auto=format&fit=crop&w=900&q=80",
-    tags: ["Progressive Poin", "High MMR", "Top 500 Badge"],
-    date: "September 2026",
-    clientFeedback:
-      '"Kualitas joki pro tapi harganya sangat masuk akal. Lawan top global tetap dibantai. Thank you Benbalfas!"',
-  },
 ];
 
 export const VALUE_PROPOSITIONS = [

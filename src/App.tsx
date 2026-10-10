@@ -111,28 +111,36 @@ export function App() {
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 dark:bg-[#070A12] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black transition-colors duration-300 efootball-pitch-bg">
       
-      {/* Top Banner Notice: Sedikit dibesarkan, Running Text (Marquee) di Mobile, Static di Desktop */}
-      <div className="bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 py-1.5 px-3 text-white shadow-sm overflow-hidden w-full max-w-full">
-        {/* Mobile View: Tulisan berjalan (Marquee) */}
-        <div className="sm:hidden w-full overflow-hidden whitespace-nowrap flex items-center">
-          <div className="animate-marquee inline-flex items-center gap-3 text-xs font-bold tracking-wide">
-            <Sparkles className="w-3.5 h-3.5 shrink-0 fill-current animate-pulse text-amber-200" />
-            <span>
-              🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In & Event Weekend 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot] • Gunakan Kode Referral "jack efo" untuk Diskon 10k (Sisa {referralStatus.remainingSlots}/5 Slot)!
-            </span>
-            <span className="mx-2 text-amber-200">•</span>
-            <Sparkles className="w-3.5 h-3.5 shrink-0 fill-current animate-pulse text-amber-200" />
-            <span>
-              🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In & Event Weekend 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot] • Gunakan Kode Referral "jack efo" untuk Diskon 10k (Sisa {referralStatus.remainingSlots}/5 Slot)!
-            </span>
+      {/* Top Banner Notice: Sedikit dibesarkan, Running Text (Seamless Marquee) di Mobile, Static di Desktop */}
+      <div className="bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 py-1.5 text-white shadow-sm overflow-hidden w-full max-w-full">
+        {/* Mobile View: Tulisan berjalan terus tanpa henti (Infinite Loop Seamless) */}
+        <div className="sm:hidden w-full overflow-hidden flex">
+          <div className="animate-marquee flex shrink-0 items-center">
+            {/* Block 1 */}
+            <div className="flex items-center gap-2.5 shrink-0 pr-8 text-xs font-bold tracking-wide">
+              <Sparkles className="w-3.5 h-3.5 shrink-0 fill-current animate-pulse text-amber-200" />
+              <span>
+                🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In & Event Weekend 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot]
+              </span>
+              <span className="text-amber-200 font-extrabold mx-1">•</span>
+            </div>
+
+            {/* Block 2 (Clone untuk Seamless Loop tanpa jeda) */}
+            <div className="flex items-center gap-2.5 shrink-0 pr-8 text-xs font-bold tracking-wide">
+              <Sparkles className="w-3.5 h-3.5 shrink-0 fill-current animate-pulse text-amber-200" />
+              <span>
+                🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In & Event Weekend 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot]
+              </span>
+              <span className="text-amber-200 font-extrabold mx-1">•</span>
+            </div>
           </div>
         </div>
 
         {/* Desktop View: Diam & Berada di Tengah */}
-        <div className="hidden sm:flex items-center justify-center gap-2 text-xs sm:text-sm font-bold tracking-wide text-center">
+        <div className="hidden sm:flex items-center justify-center gap-2 text-xs sm:text-sm font-bold tracking-wide text-center px-3">
           <Sparkles className="w-4 h-4 shrink-0 fill-current animate-pulse text-amber-200" />
           <span>
-            🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In & Event Weekend 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot] • Kode Referral "jack efo" (-10k)
+            🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In & Event Weekend 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot]
           </span>
         </div>
       </div>

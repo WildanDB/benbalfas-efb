@@ -84,24 +84,25 @@
   scrollbar-width: none;
 }
 
-/* Mobile marquee running text */
-@keyframes marqueeMobile {
+/* Mobile marquee continuous seamless loop running text (setengah kecepatan & jalan terus tanpa jeda) */
+@keyframes marqueeSeamless {
   0% {
-    transform: translateX(100%);
+    transform: translateX(0%);
   }
   100% {
-    transform: translateX(-100%);
+    transform: translateX(-50%);
   }
 }
 
 .animate-marquee {
-  display: inline-flex;
-  white-space: nowrap;
-  animation: marqueeMobile 22s linear infinite;
+  display: flex;
+  width: max-content;
+  animation: marqueeSeamless 40s linear infinite;
   will-change: transform;
 }
 
 .animate-marquee:hover {
   animation-play-state: paused;
 }
+
 

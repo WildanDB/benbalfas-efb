@@ -350,14 +350,14 @@ export function validateReferralCode(inputCode: string): {
     return {
       isValid: false,
       discountAmount: 0,
-      message: 'Maaf, kuota kode referral "jack efo" sudah habis (5/5 terpakai).',
+      message: 'Maaf, kuota kode referral ini sudah habis (5/5 terpakai).',
     };
   }
 
   return {
     isValid: true,
     discountAmount: REFERRAL_CONFIG.discountAmount,
-    message: `Kode "${REFERRAL_CONFIG.code}" berhasil! Diskon Rp 10.000 diterapkan (Sisa ${status.remainingSlots} slot).`,
+    message: `Kode referral valid! Diskon Rp 10.000 berhasil diterapkan (Sisa ${status.remainingSlots} slot).`,
   };
 }
 

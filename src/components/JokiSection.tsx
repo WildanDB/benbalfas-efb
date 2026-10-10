@@ -56,7 +56,11 @@ export const JokiSection: React.FC<JokiSectionProps> = ({ onOpenCheckout }) => {
 
   // Progressive Points Discount
   const pointsDiscount = useMemo(() => {
-    return calculateDiscount(calculationResult.totalPrice, false, promoStatus.isActive);
+    return calculateDiscount(
+      calculationResult.totalPrice,
+      false,
+      promoStatus.isActive,
+    );
   }, [calculationResult.totalPrice, promoStatus.isActive]);
 
   const handlePresetSelect = (init: number, target: number) => {
@@ -182,7 +186,9 @@ export const JokiSection: React.FC<JokiSectionProps> = ({ onOpenCheckout }) => {
             >
               <Sparkles className="w-4 h-4 shrink-0" />
               <span className="sm:hidden">Paket Instan</span>
-              <span className="hidden sm:inline">TAB B: Pilih Paket Instan</span>
+              <span className="hidden sm:inline">
+                TAB B: Pilih Paket Instan
+              </span>
             </button>
           </div>
         </div>
@@ -412,7 +418,8 @@ export const JokiSection: React.FC<JokiSectionProps> = ({ onOpenCheckout }) => {
                     </div>
                     {pointsDiscount.isApplied && (
                       <p className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        Hemat {formatRupiah(pointsDiscount.discountAmount)} (Diskon 20%)
+                        Hemat {formatRupiah(pointsDiscount.discountAmount)}{" "}
+                        (Diskon 20%)
                       </p>
                     )}
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
@@ -529,22 +536,27 @@ export const JokiSection: React.FC<JokiSectionProps> = ({ onOpenCheckout }) => {
             {/* Pricing Cards Grid (4 Cards Responsive) */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 items-stretch pt-4">
               {PACKAGES_DATA.map((pkg) => {
-                const isAllIn = pkg.id === 'sultan-phase-clear';
-                const isTenPercent = pkg.id === 'sultan-phase-clear' || pkg.id === 'event-weekend';
+                const isAllIn = pkg.id === "sultan-phase-clear";
+                const isTenPercent =
+                  pkg.id === "sultan-phase-clear" || pkg.id === "event-weekend";
                 const isDecoy = Boolean(pkg.isDecoy);
-                const pkgDiscount = calculateDiscount(pkg.price, isTenPercent, promoStatus.isActive);
+                const pkgDiscount = calculateDiscount(
+                  pkg.price,
+                  isTenPercent,
+                  promoStatus.isActive,
+                );
 
                 return (
                   <div
                     key={pkg.id}
                     className={`relative rounded-3xl transition-all duration-300 flex flex-col justify-between ${
                       isAllIn
-                        ? "bg-gradient-to-b from-amber-50 via-white to-orange-50 dark:from-[#192233] dark:via-[#0f1622] dark:to-[#0a0f18] border-2 border-amber-500 dark:border-amber-400 shadow-glow-gold lg:-translate-y-2 p-6 sm:p-7 z-10"
+                        ? "bg-gradient-to-b from-amber-50 via-white to-orange-50 dark:from-[#192233] dark:via-[#0f1622] dark:to-[#0a0f18] border-2 border-amber-500 dark:border-amber-400 shadow-glow-gold lg:-translate-y-2 p-5 sm:p-6 z-10"
                         : isDecoy
-                          ? "bg-white dark:bg-slate-900/70 border border-purple-300 dark:border-purple-500/20 hover:border-purple-500 p-6 sm:p-7 shadow-sm"
+                          ? "bg-white dark:bg-slate-900/70 border border-purple-300 dark:border-purple-500/20 hover:border-purple-500 p-5 sm:p-6 shadow-sm"
                           : pkg.id === "event-weekend"
-                            ? "bg-white dark:bg-slate-900/70 border border-cyan-300 dark:border-cyan-500/30 hover:border-cyan-500 p-6 sm:p-7 shadow-sm"
-                            : "bg-white dark:bg-slate-900/70 border border-blue-300 dark:border-blue-500/20 hover:border-blue-500 p-6 sm:p-7 shadow-sm"
+                            ? "bg-white dark:bg-slate-900/70 border border-cyan-300 dark:border-cyan-500/30 hover:border-cyan-500 p-5 sm:p-6 shadow-sm"
+                            : "bg-white dark:bg-slate-900/70 border border-blue-300 dark:border-blue-500/20 hover:border-blue-500 p-5 sm:p-6 shadow-sm"
                     }`}
                   >
                     {/* Top Floating Badge for All-In */}
@@ -578,18 +590,18 @@ export const JokiSection: React.FC<JokiSectionProps> = ({ onOpenCheckout }) => {
 
                       {/* Title & Subtitle */}
                       <h3
-                        className={`font-display font-black text-2xl mb-1 ${isAllIn ? "text-amber-700 dark:text-amber-300" : "text-slate-900 dark:text-white"}`}
+                        className={`font-display font-black text-xl lg:text-lg xl:text-xl mb-1 ${isAllIn ? "text-amber-700 dark:text-amber-300" : "text-slate-900 dark:text-white"}`}
                       >
                         {pkg.title}
                       </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mb-5 font-medium">
                         {pkg.subtitle}
                       </p>
 
                       {/* Price Display */}
-                      <div className="mb-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+                      <div className="mb-6 p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 overflow-hidden">
                         {pkgDiscount.isApplied && (
-                          <div className="flex items-center gap-1.5 mb-1">
+                          <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                             <span className="text-xs text-slate-400 line-through font-mono">
                               {pkg.formattedPrice}
                             </span>
@@ -598,9 +610,9 @@ export const JokiSection: React.FC<JokiSectionProps> = ({ onOpenCheckout }) => {
                             </span>
                           </div>
                         )}
-                        <div className="flex items-baseline gap-1">
+                        <div className="flex flex-wrap items-baseline gap-1.5">
                           <span
-                            className={`font-display font-black text-3xl sm:text-4xl ${
+                            className={`font-display font-black text-2xl sm:text-3xl lg:text-2xl xl:text-3xl tracking-tight leading-none ${
                               isAllIn
                                 ? "text-amber-600 dark:text-amber-400"
                                 : "text-slate-900 dark:text-white"
@@ -608,17 +620,17 @@ export const JokiSection: React.FC<JokiSectionProps> = ({ onOpenCheckout }) => {
                           >
                             {formatRupiah(pkgDiscount.finalPrice)}
                           </span>
-                          <span className="text-xs text-slate-500 font-mono">
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-mono font-semibold shrink-0">
                             / tuntas
                           </span>
                         </div>
                         {isDecoy && (
-                          <p className="text-[11px] text-purple-700 dark:text-purple-400 mt-1 font-mono">
+                          <p className="text-[11px] text-purple-700 dark:text-purple-400 mt-2 font-mono">
                             ⚡️ Cuma nambah 31k untuk Paket All-In (Diskon 10%)!
                           </p>
                         )}
                         {isAllIn && (
-                          <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-1 font-mono font-bold">
+                          <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-2 font-mono font-bold">
                             ⭐️ Termasuk Push Rank + Seluruh Event Hadiah Koin
                           </p>
                         )}

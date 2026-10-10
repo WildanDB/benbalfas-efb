@@ -750,7 +750,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <Tag className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-                  <span>4. Kode Referral (Diskon Rp 10.000)</span>
+                  <span>4. Kode Referral</span>
                 </label>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                   Opsional
@@ -766,7 +766,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       setReferralInput(e.target.value);
                       if (referralFeedback.message) setReferralFeedback({ type: null, message: "" });
                     }}
-                    placeholder='Ketik kode referral (cth: "jack efo")'
+                    placeholder="Masukkan kode referral jika punya"
                     className="flex-1 px-3 py-2 text-xs font-mono rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white uppercase placeholder:normal-case placeholder:text-slate-400 focus:border-cyan-400 focus:outline-none shadow-sm"
                   />
                   <button

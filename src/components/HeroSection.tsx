@@ -85,12 +85,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   const [activeJokiIndex, setActiveJokiIndex] = useState(0);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'update'>('create');
+  const [editingJokiId, setEditingJokiId] = useState<string | null>(null);
+
   const [newJokiForm, setNewJokiForm] = useState({
     clientName: "Klien Baru (Kota)",
     packageName: "Paket Event Weekend (italy, POTW, dll)",
     initialRating: 1400,
     targetRating: 1850,
-    status: "Selesai" as "Selesai" | "Sedang Proses",
+    status: "Sedang Proses" as "Selesai" | "Sedang Proses",
     duration: "4 Jam",
     date: "Hari Ini",
     winStreak: 6,
@@ -104,33 +107,132 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const currentJoki =
     recentJokis[activeJokiIndex] || recentJokis[0] || INITIAL_RECENT_JOKIS[0];
 
-  const handleAddRecentJoki = (e: React.FormEvent) => {
+  const handleOpenCreateModal = () => {
+    setModalMode('create');
+    setEditingJokiId(null);
+    setNewJokiForm({
+      clientName: "Klien Baru (Kota)",
+      packageName: "Paket Divisi 1 (Road to D1)",
+      initialRating: 1400,
+      targetRating: 1850,
+      status: "Sedang Proses",
+      duration: "1 Hari",
+      date: "Hari Ini",
+      winStreak: 6,
+      platform: "steam",
+      recordType: "points",
+      win: 5,
+      draw: 0,
+      loss: 0,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleOpenUpdateModal = (joki: RecentJoki = currentJoki) => {
+    setModalMode('update');
+    setEditingJokiId(joki.id);
+    const isWdl = joki.recordType === 'wdl' || !!joki.wdlRecord;
+    setNewJokiForm({
+      clientName: joki.clientName || "",
+      packageName: joki.packageName || "",
+      initialRating: joki.initialRating ?? 1400,
+      targetRating: joki.targetRating ?? 1850,
+      status: joki.status || "Sedang Proses",
+      duration: joki.duration || "1 Hari",
+      date: joki.date || "Hari Ini",
+      winStreak: joki.winStreak ?? 6,
+      platform: joki.platform || "steam",
+      recordType: isWdl ? "wdl" : "points",
+      win: joki.wdlRecord?.win ?? (joki.winStreak || 0),
+      draw: joki.wdlRecord?.draw ?? 0,
+      loss: joki.wdlRecord?.loss ?? 0,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveRecentJoki = (e: React.FormEvent) => {
     e.preventDefault();
     const isWdl = newJokiForm.recordType === 'wdl' || newJokiForm.packageName.toLowerCase().includes('weekend');
-    const created: RecentJoki = {
-      id: "rj-" + Date.now(),
-      clientName: newJokiForm.clientName || "Klien Baru",
-      packageName: newJokiForm.packageName || (isWdl ? "Paket Event Weekend" : "Paket Divisi 1"),
-      status: (newJokiForm.status as "Selesai" | "Sedang Proses") || "Selesai",
-      duration: newJokiForm.duration || "1 Hari",
-      date: newJokiForm.date || "Hari Ini",
-      winStreak: Number(newJokiForm.winStreak) || (isWdl ? Number(newJokiForm.win) || 5 : 12),
-      platform: (newJokiForm.platform as GamingPlatform) || "steam",
-      recordType: isWdl ? 'wdl' : 'points',
-      initialRating: isWdl ? undefined : Number(newJokiForm.initialRating) || 1400,
-      targetRating: isWdl ? undefined : Number(newJokiForm.targetRating) || 1850,
-      wdlRecord: isWdl ? {
-        win: Number(newJokiForm.win) || 0,
-        draw: Number(newJokiForm.draw) || 0,
-        loss: Number(newJokiForm.loss) || 0,
-      } : undefined,
-    };
-    const updated = [created, ...recentJokis];
-    setRecentJokis(updated);
-    localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: updated }));
-    setIsEditModalOpen(false);
-    setActiveJokiIndex(0);
+
+    if (modalMode === 'update' && editingJokiId) {
+      const updated = recentJokis.map((item) => {
+        if (item.id === editingJokiId) {
+          return {
+            ...item,
+            clientName: newJokiForm.clientName || item.clientName,
+            packageName: newJokiForm.packageName || item.packageName,
+            status: newJokiForm.status,
+            duration: newJokiForm.duration,
+            platform: newJokiForm.platform,
+            date: newJokiForm.date,
+            winStreak: Number(newJokiForm.winStreak) || (isWdl ? Number(newJokiForm.win) || item.winStreak : item.winStreak),
+            recordType: isWdl ? ('wdl' as const) : ('points' as const),
+            initialRating: isWdl ? undefined : Number(newJokiForm.initialRating) || 1400,
+            targetRating: isWdl ? undefined : Number(newJokiForm.targetRating) || 1850,
+            wdlRecord: isWdl ? {
+              win: Number(newJokiForm.win) || 0,
+              draw: Number(newJokiForm.draw) || 0,
+              loss: Number(newJokiForm.loss) || 0,
+            } : undefined,
+          };
+        }
+        return item;
+      });
+
+      setRecentJokis(updated);
+      localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: updated }));
+
+      // Sinkronisasikan juga ke Spreadsheet records jika ada ID pesanan yang cocok
+      try {
+        const rawSpreadsheet = localStorage.getItem("benbalfas_spreadsheet_records");
+        if (rawSpreadsheet) {
+          const sheetRecords = JSON.parse(rawSpreadsheet);
+          const cleanOrderId = editingJokiId.replace("rj-", "");
+          const updatedSheets = sheetRecords.map((sr: any) => {
+            if (sr.orderId === cleanOrderId || sr.clientName === newJokiForm.clientName) {
+              return {
+                ...sr,
+                status: newJokiForm.status,
+                initialRating: isWdl ? sr.initialRating : Number(newJokiForm.initialRating),
+                targetRating: isWdl ? sr.targetRating : Number(newJokiForm.targetRating),
+                duration: newJokiForm.duration,
+              };
+            }
+            return sr;
+          });
+          localStorage.setItem("benbalfas_spreadsheet_records", JSON.stringify(updatedSheets));
+        }
+      } catch {}
+
+      setIsEditModalOpen(false);
+    } else {
+      // Create new joki
+      const created: RecentJoki = {
+        id: "rj-" + Date.now(),
+        clientName: newJokiForm.clientName || "Klien Baru",
+        packageName: newJokiForm.packageName || (isWdl ? "Paket Event Weekend" : "Paket Divisi 1"),
+        status: (newJokiForm.status as "Selesai" | "Sedang Proses") || "Sedang Proses",
+        duration: newJokiForm.duration || "1 Hari",
+        date: newJokiForm.date || "Hari Ini",
+        winStreak: Number(newJokiForm.winStreak) || (isWdl ? Number(newJokiForm.win) || 5 : 12),
+        platform: (newJokiForm.platform as GamingPlatform) || "steam",
+        recordType: isWdl ? 'wdl' : 'points',
+        initialRating: isWdl ? undefined : Number(newJokiForm.initialRating) || 1400,
+        targetRating: isWdl ? undefined : Number(newJokiForm.targetRating) || 1850,
+        wdlRecord: isWdl ? {
+          win: Number(newJokiForm.win) || 0,
+          draw: Number(newJokiForm.draw) || 0,
+          loss: Number(newJokiForm.loss) || 0,
+        } : undefined,
+      };
+      const updated = [created, ...recentJokis];
+      setRecentJokis(updated);
+      localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: updated }));
+      setIsEditModalOpen(false);
+      setActiveJokiIndex(0);
+    }
   };
 
   const handleDeleteActiveJoki = (id: string) => {
@@ -341,22 +443,34 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       </div>
                     </div>
 
-                    {/* Edit button ONLY visible in secret owner mode */}
+                    {/* Owner Action Buttons: Update Joki Aktif, Tambah Baru, Hapus */}
                     {isAdmin && (
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                        {/* Tombol UPDATE Joki Aktif */}
                         <button
-                          onClick={() => setIsEditModalOpen(true)}
-                          className="p-1.5 px-2 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[11px] font-bold flex items-center gap-1 border border-cyan-500/30 shrink-0"
-                          title="Tambah / Update Data Joki (Owner Mode)"
+                          onClick={() => handleOpenUpdateModal(currentJoki)}
+                          className="p-1.5 px-2.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] font-bold flex items-center gap-1 border border-amber-500/30 shrink-0 hover:bg-amber-500/30 transition cursor-pointer"
+                          title="Update joki yang sedang aktif dipilih / dikerjakan"
                         >
                           <Edit2 className="w-3 h-3" />
-                          <span className="hidden xs:inline">+ Tambah Data</span>
+                          <span>Update Joki Aktif</span>
                         </button>
+
+                        {/* Tombol TAMBAH Joki Baru */}
+                        <button
+                          onClick={handleOpenCreateModal}
+                          className="p-1.5 px-2 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[11px] font-bold flex items-center gap-1 border border-cyan-500/30 shrink-0 hover:bg-cyan-500/30 transition cursor-pointer"
+                          title="Tambah data joki baru ke etalase"
+                        >
+                          <span>+ Tambah Baru</span>
+                        </button>
+
+                        {/* Tombol HAPUS */}
                         {recentJokis.length > 1 && (
                           <button
                             onClick={() => handleDeleteActiveJoki(currentJoki.id)}
-                            className="p-1.5 px-2 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[11px] font-bold flex items-center gap-1 border border-rose-500/30 shrink-0"
-                            title="Hapus data joki ini"
+                            className="p-1.5 px-2 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[11px] font-bold flex items-center gap-1 border border-rose-500/30 shrink-0 hover:bg-rose-500/30 transition cursor-pointer"
+                            title="Hapus data joki ini dari etalase"
                           >
                             <Trash2 className="w-3 h-3" />
                             <span className="hidden xs:inline">Hapus</span>
@@ -391,9 +505,25 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[55%] sm:max-w-none">
                         {currentJoki.clientName}
                       </span>
-                      <span className="text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30 shrink-0">
-                        {currentJoki.status} • {currentJoki.date}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md font-bold border shrink-0 ${
+                          currentJoki.status === 'Sedang Proses'
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
+                            : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                        }`}>
+                          {currentJoki.status} • {currentJoki.date}
+                        </span>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleOpenUpdateModal(currentJoki)}
+                            className="p-1 px-2 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-500/30 hover:bg-amber-500/30 transition flex items-center gap-1 cursor-pointer"
+                            title="Edit joki ini (skor, status, atau durasi)"
+                          >
+                            <Edit2 className="w-2.5 h-2.5" />
+                            <span>Edit Ini</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between gap-2 min-w-0">
@@ -554,9 +684,18 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn overflow-y-auto">
           <div className="bg-white dark:bg-[#0c121e] border border-slate-200 dark:border-slate-700 rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 space-y-4 shadow-2xl text-xs max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">
-                Tambah / Update Data Joki Terakhir (Owner Mode)
-              </h3>
+              <div>
+                <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">
+                  {modalMode === 'update'
+                    ? `Update Progres Joki: ${newJokiForm.clientName}`
+                    : 'Tambah Data Joki Baru'}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {modalMode === 'update'
+                    ? 'Ubah skor saat ini, perbarui W-D-L/poin, atau selesaikan status joki'
+                    : 'Tambahkan data joki baru ke etalase Data Joki Terakhir'}
+                </p>
+              </div>
               <button
                 onClick={() => setIsEditModalOpen(false)}
                 className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white"
@@ -565,7 +704,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleAddRecentJoki} className="space-y-3">
+            <form onSubmit={handleSaveRecentJoki} className="space-y-3">
               <div>
                 <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
                   Nama Klien & Kota
@@ -792,9 +931,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-cyan-500 text-white font-bold shadow-md"
+                  className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white font-bold shadow-md cursor-pointer transition"
                 >
-                  Simpan Data
+                  {modalMode === 'update' ? 'Simpan Pembaruan Joki' : 'Tambah ke Etalase'}
                 </button>
               </div>
             </form>

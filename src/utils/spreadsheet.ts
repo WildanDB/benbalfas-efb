@@ -59,11 +59,32 @@ export const saveSpreadsheetRecord = (record: SpreadsheetOrderRecord): void => {
   }
 };
 
+export const getActiveGoogleSheetWebhookUrl = (): string => {
+  return (
+    localStorage.getItem('benbalfas_google_sheet_webhook_url') ||
+    APP_CONFIG.googleSheetWebhookUrl ||
+    ''
+  );
+};
+
+export const getActiveTelegramConfig = () => {
+  return {
+    botToken:
+      localStorage.getItem('benbalfas_telegram_bot_token') ||
+      APP_CONFIG.telegramBotToken ||
+      '',
+    chatId:
+      localStorage.getItem('benbalfas_telegram_chat_id') ||
+      APP_CONFIG.telegramChatId ||
+      '',
+  };
+};
+
 /**
  * Mengirim payload baris pesanan ke Google Apps Script Webhook (Google Sheets di Google Drive)
  */
 export const sendToGoogleSheetWebhook = async (record: SpreadsheetOrderRecord): Promise<boolean> => {
-  const webhookUrl = APP_CONFIG.googleSheetWebhookUrl;
+  const webhookUrl = getActiveGoogleSheetWebhookUrl();
   if (!webhookUrl || !webhookUrl.startsWith('http')) {
     return false;
   }
@@ -107,6 +128,87 @@ export const sendToGoogleSheetWebhook = async (record: SpreadsheetOrderRecord): 
 };
 
 /**
+ * Menguji koneksi webhook Google Sheets
+ */
+export const testGoogleSheetWebhook = async (
+  url: string
+): Promise<{ success: boolean; message: string }> => {
+  if (!url || !url.startsWith('http')) {
+    return {
+      success: false,
+      message: 'URL Webhook tidak valid. Pastikan dimulai dengan https://script.google.com/macros/s/.../exec',
+    };
+  }
+  try {
+    await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        timestamp: new Date().toLocaleString('id-ID'),
+        orderId: 'TEST-BENBALFAS-' + Math.floor(Math.random() * 1000),
+        clientName: 'Ben Balfas (Sistem Testing)',
+        whatsappNumber: '085111418780',
+        platform: 'Steam (PC)',
+        orderDescription: 'Testing Koneksi Google Sheets (ID: 1KcBcdx0W8y46vGjcs9QXVLB744KnvOY8YO1bXWSsJPo)',
+        initialRating: '-',
+        targetRating: '-',
+        originalPrice: 70000,
+        discountPercent: '10%',
+        finalPrice: 63000,
+        duration: 'Instan',
+        status: 'Selesai',
+        paymentMethod: 'QRIS',
+        accountUsername: 'test_user',
+        accountPassword: 'test_password',
+        transferProofName: 'test.jpg',
+        transferProofNote: 'Uji coba koneksi dari panel Owner',
+      }),
+    });
+    return {
+      success: true,
+      message: 'Data testing berhasil dikirim! Silakan buka Google Sheet Anda untuk melihat baris baru.',
+    };
+  } catch (err: any) {
+    return { success: false, message: 'Gagal mengirim data test: ' + (err.message || 'Error jaringan') };
+  }
+};
+
+/**
+ * Menguji notifikasi Telegram Bot
+ */
+export const testTelegramNotification = async (
+  botToken: string,
+  chatId: string
+): Promise<{ success: boolean; message: string }> => {
+  if (!botToken || !chatId) {
+    return {
+      success: false,
+      message: 'Bot Token dan Chat ID wajib diisi. Dapatkan Bot Token dari @BotFather dan Chat ID dari @userinfobot.',
+    };
+  }
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: `✅ *TES KONEKSI TELEGRAM BERHASIL - BEN BALFAS*\n\nSelamat! Notifikasi bot Telegram resmi Anda sudah aktif dan terhubung dengan website.\nSetiap ada pesanan joki baru masuk, detail akun klien akan otomatis terkirim ke chat ini secara instan! ⚽️⚡️`,
+        parse_mode: 'Markdown',
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      return { success: true, message: 'Notifikasi test Telegram berhasil terkirim ke chat Anda!' };
+    } else {
+      return { success: false, message: 'Telegram Error: ' + (data.description || 'Token atau Chat ID salah') };
+    }
+  } catch (err: any) {
+    return { success: false, message: 'Gagal menghubungi Telegram API: ' + (err.message || 'Error jaringan') };
+  }
+};
+
+/**
  * Mengintegrasikan pesanan baru langsung ke "Data Joki Terakhir"
  */
 export const addOrderToRecentJoki = (record: SpreadsheetOrderRecord): void => {
@@ -123,12 +225,16 @@ export const addOrderToRecentJoki = (record: SpreadsheetOrderRecord): void => {
       existing = [...INITIAL_RECENT_JOKIS];
     }
 
+    const isWdl = record.orderDescription.toLowerCase().includes('weekend');
+
     const newRecentJoki: RecentJoki = {
       id: 'rj-' + record.orderId,
       clientName: record.clientName,
       packageName: record.orderDescription,
-      initialRating: record.initialRating,
-      targetRating: record.targetRating,
+      recordType: isWdl ? 'wdl' : 'points',
+      initialRating: isWdl ? undefined : record.initialRating,
+      targetRating: isWdl ? undefined : record.targetRating,
+      wdlRecord: isWdl ? { win: 0, draw: 0, loss: 0 } : undefined,
       status: 'Sedang Proses',
       duration: record.duration,
       date: 'Hari Ini',
@@ -291,24 +397,68 @@ export const getGoogleAppsScriptCodeTemplate = (): string => {
   return `/**
  * GOOGLE APPS SCRIPT - SINKRONISASI OTOMATIS BEN BALFAS EFOOTBALL
  * 
- * Cara Pasang di Google Drive Ben Balfas Aset:
- * 1. Buka Google Sheet baru di Drive Ben Balfas Aset (Beri nama: "Data Pesanan Joki Ben Balfas")
- * 2. Buat header di Baris 1:
- *    [Timestamp | Order ID | Nama Klien | WhatsApp | Platform | Layanan | Poin Awal | Target Poin | Harga Normal | Diskon | Total Bayar | Estimasi SLA | Status | Metode Bayar | Username | Password | Bukti Transfer | Catatan]
- * 3. Klik menu "Ekstensi" (Extensions) > "Apps Script"
- * 4. Hapus isi bawaan, paste kode di bawah ini, lalu klik icon Simpan (Ctrl+S)
- * 5. Klik tombol biru "Deploy" (Terapkan) > "New deployment" (Deployment baru)
- * 6. Pilih jenis: "Web app" (Aplikasi Web)
- * 7. Setting:
- *    - Execute as: Me (email Anda)
- *    - Who has access: Anyone (Siapa saja)
- * 8. Klik Deploy, salin Web App URL, lalu paste ke APP_CONFIG.googleSheetWebhookUrl di file constants.ts!
+ * Target Google Spreadsheet:
+ * https://docs.google.com/spreadsheets/d/1KcBcdx0W8y46vGjcs9QXVLB744KnvOY8YO1bXWSsJPo/edit
+ *
+ * CARA MEMASANG (HANYA 1 MENIT):
+ * 1. Buka spreadsheet Anda di atas.
+ * 2. Klik menu "Ekstensi" (Extensions) > "Apps Script".
+ * 3. Hapus semua kode bawaan (myFunction), lalu paste seluruh kode ini (Ctrl+V).
+ * 4. Klik ikon Disket (Simpan / Save project).
+ * 5. Klik tombol biru "Deploy" (Terapkan) di pojok kanan atas > "New deployment" (Deployment baru).
+ * 6. Klik ikon gerigi (Select type) > pilih "Web app".
+ * 7. Isi pengaturan:
+ *    - Description: "Webhook Ben Balfas eFootball"
+ *    - Execute as: "Me" (email Google Anda)
+ *    - Who has access: "Anyone" (Siapa saja)  <-- PENTING agar website bisa kirim data!
+ * 8. Klik tombol "Deploy". Jika diminta otorisasi izin (Authorize access), berikan izin.
+ * 9. Salin "Web app URL" (akhiran /exec).
+ * 10. Paste URL tersebut ke panel Owner di website (Auto-Sync Cloud > Simpan URL Webhook)!
  */
 
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var data = JSON.parse(e.postData.contents);
+    var ss;
+    try {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    } catch(err) {}
+    
+    if (!ss) {
+      ss = SpreadsheetApp.openById("1KcBcdx0W8y46vGjcs9QXVLB744KnvOY8YO1bXWSsJPo");
+    }
+    
+    var sheet = ss.getActiveSheet();
+    
+    // Otomatis buat header tabel di Baris 1 jika spreadsheet masih kosong
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        "Waktu & Tanggal",
+        "ID Pesanan",
+        "Nama Klien",
+        "Nomor WhatsApp",
+        "Platform",
+        "Layanan / Paket",
+        "Poin Awal",
+        "Target Poin / Hasil",
+        "Harga Normal",
+        "Diskon Promo",
+        "Kode Referral",
+        "Diskon Referral",
+        "Total Pembayaran",
+        "Estimasi SLA",
+        "Status Joki",
+        "Metode Pembayaran",
+        "Username Game",
+        "Password Game",
+        "Bukti Transfer",
+        "Catatan Klien"
+      ]);
+    }
+    
+    var data = {};
+    if (e && e.postData && e.postData.contents) {
+      data = JSON.parse(e.postData.contents);
+    }
     
     sheet.appendRow([
       data.timestamp || new Date().toLocaleString('id-ID'),
@@ -317,26 +467,40 @@ function doPost(e) {
       data.whatsappNumber || '',
       data.platform || '',
       data.orderDescription || '',
-      data.initialRating || '',
-      data.targetRating || '',
-      data.originalPrice || '',
-      data.discountPercent || '',
-      data.finalPrice || '',
+      (data.initialRating !== undefined && data.initialRating !== null) ? data.initialRating : '-',
+      (data.targetRating !== undefined && data.targetRating !== null) ? data.targetRating : '-',
+      data.originalPrice || 0,
+      data.discountPercent || '0%',
+      data.referralCode || '-',
+      data.referralDiscount || 0,
+      data.finalPrice || 0,
       data.duration || '',
       data.status || 'Sedang Proses',
       data.paymentMethod || 'QRIS',
       data.accountUsername || '',
       data.accountPassword || '',
-      data.transferProofName || '',
-      data.transferProofNote || ''
+      data.transferProofName || 'Tidak dilampirkan',
+      data.transferProofNote || '-'
     ]);
     
-    return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "success", 
+      message: "Data pesanan berhasil dicatat ke Spreadsheet Ben Balfas" 
+    })).setMimeType(ContentService.MimeType.JSON);
+    
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "error", 
+      message: err.toString() 
+    })).setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "online",
+    message: "Webhook Google Sheets Benbalfas eFootball aktif!"
+  })).setMimeType(ContentService.MimeType.JSON);
 }
 `;
 };

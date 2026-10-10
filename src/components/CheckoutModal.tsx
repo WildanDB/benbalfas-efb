@@ -35,6 +35,7 @@ import { APP_CONFIG } from "../config/constants";
 import {
   syncOrderToSpreadsheetAndRecentJoki,
   SpreadsheetOrderRecord,
+  getActiveTelegramConfig,
 } from "../utils/spreadsheet";
 
 interface CheckoutModalProps {
@@ -312,15 +313,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       `⚡️ *Status Joki:* Sedang Proses (Tercatat di Spreadsheet & Web)\n` +
       `⏳ Menunggu Konfirmasi Handover OTP WhatsApp Admin`;
 
-    if (APP_CONFIG.telegramBotToken && APP_CONFIG.telegramChatId) {
+    const telegramConfig = getActiveTelegramConfig();
+    if (telegramConfig.botToken && telegramConfig.chatId) {
       try {
         await fetch(
-          `https://api.telegram.org/bot${APP_CONFIG.telegramBotToken}/sendMessage`,
+          `https://api.telegram.org/bot${telegramConfig.botToken}/sendMessage`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              chat_id: APP_CONFIG.telegramChatId,
+              chat_id: telegramConfig.chatId,
               text: telegramMessage,
               parse_mode: "Markdown",
             }),

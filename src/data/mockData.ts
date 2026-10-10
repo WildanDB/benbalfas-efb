@@ -2,6 +2,22 @@ import { JokiPackage, CaseStudy, RecentJoki } from "../types";
 
 export const INITIAL_RECENT_JOKIS: RecentJoki[] = [
   {
+    id: "rj-0",
+    clientName: "Rian (Bandung)",
+    packageName: "Paket Event Weekend (italy, POTW, dll)",
+    status: "Selesai",
+    duration: "4 Jam",
+    date: "Hari Ini",
+    winStreak: 6,
+    platform: "steam",
+    recordType: "wdl",
+    wdlRecord: {
+      win: 5,
+      draw: 1,
+      loss: 0,
+    },
+  },
+  {
     id: "rj-1",
     clientName: "I'm paman (Papua)",
     packageName: "Push Poin Progresif (1710 ➔ 1810)",
@@ -260,6 +276,6 @@ export const FAQS = [
   {
     question: "Apa nomor kontak dan akun sosial media resmi Ben Balfas?",
     answer:
-      "Transaksi dan komunikasi resmi Ben Balfas HANYA melalui nomor WhatsApp dan Telegram 0821-2190-2700. Seluruh akun sosial media resmi kami di TikTok, YouTube, dan Instagram semuanya menggunakan nama 'ben balfas'. Selalu pastikan Anda bertransaksi langsung melalui nomor resmi kami untuk keamanan 100%.",
+      "Transaksi dan komunikasi resmi Ben Balfas HANYA melalui nomor WhatsApp dan Telegram 0851-1141-8780. Seluruh akun sosial media resmi kami di TikTok, YouTube, dan Instagram semuanya menggunakan nama 'ben balfas'. Selalu pastikan Anda bertransaksi langsung melalui nomor resmi kami untuk keamanan 100%.",
   },
 ];

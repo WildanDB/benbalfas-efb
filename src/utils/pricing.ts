@@ -222,6 +222,9 @@ export function claimPromoSlot(): number {
   if (current < PROMO_CONFIG.totalSlots) {
     const next = current + 1;
     localStorage.setItem('benbalfas_promo_claimed_count', next.toString());
+    try {
+      window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
+    } catch {}
     return next;
   }
   return current;
@@ -230,6 +233,9 @@ export function claimPromoSlot(): number {
 export function resetPromoSlots(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('benbalfas_promo_claimed_count');
+  try {
+    window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
+  } catch {}
 }
 
 export interface DiscountCalculation {
@@ -367,6 +373,9 @@ export function claimReferralSlot(): number {
   if (current < REFERRAL_CONFIG.totalSlots) {
     const next = current + 1;
     localStorage.setItem('benbalfas_referral_claimed_count', next.toString());
+    try {
+      window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
+    } catch {}
     return next;
   }
   return current;
@@ -375,5 +384,8 @@ export function claimReferralSlot(): number {
 export function resetReferralSlots(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('benbalfas_referral_claimed_count');
+  try {
+    window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
+  } catch {}
 }
 

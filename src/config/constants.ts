@@ -3,14 +3,14 @@
 
 export const APP_CONFIG = {
   // Nomor Kontak Resmi WhatsApp & Telegram Admin
-  adminPhone: "082121902700",
-  adminWhatsApp: "6282121902700", // Format WhatsApp API: 6282121902700
-  adminPhoneFormatted: "0821-2190-2700",
+  adminPhone: "085111418780",
+  adminWhatsApp: "6285111418780", // Format WhatsApp API: 6285111418780
+  adminPhoneFormatted: "0851-1141-8780",
 
   // Telegram Admin Resmi
-  telegramPhone: "082121902700",
+  telegramPhone: "085111418780",
   telegramUsername: "benbalfas",
-  telegramUrl: "https://t.me/+6282121902700",
+  telegramUrl: "https://t.me/+6285111418780",
 
   // Akun Sosial Media Resmi Ben Balfas
   socialMedia: [

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Calculator,
   Sparkles,
@@ -47,7 +47,13 @@ export const JokiSection: React.FC<JokiSectionProps> = ({ onOpenCheckout }) => {
   const [targetPoints, setTargetPoints] = useState<number>(1850);
 
   // Promo status
-  const promoStatus = getPromoStatus();
+  const [promoStatus, setPromoStatus] = useState(getPromoStatus);
+
+  useEffect(() => {
+    const handlePromoSync = () => setPromoStatus(getPromoStatus());
+    window.addEventListener('benbalfas_promo_updated', handlePromoSync);
+    return () => window.removeEventListener('benbalfas_promo_updated', handlePromoSync);
+  }, []);
 
   // Calculation Result Memo
   const calculationResult = useMemo(() => {

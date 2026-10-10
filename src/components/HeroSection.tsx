@@ -8,6 +8,7 @@ import {
   Flame,
   CheckCircle2,
   Edit2,
+  Trash2,
   X,
 } from "lucide-react";
 import { RecentJoki, GamingPlatform } from "../types";
@@ -42,51 +43,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     }
   }, []);
 
-  const CURRENT_RECENT_FINGERPRINT = JSON.stringify(INITIAL_RECENT_JOKIS);
-
-  // Recent Joki Data State
+  // Recent Joki Data State (Persisten di localStorage)
   const [recentJokis, setRecentJokis] = useState<RecentJoki[]>(() => {
-    const savedFingerprint = localStorage.getItem(
-      "benbalfas_recent_fingerprint",
-    );
+    if (typeof window === "undefined") return INITIAL_RECENT_JOKIS;
     const saved = localStorage.getItem("benbalfas_recent_jokis");
-
-    // If mockData.ts was changed in code, automatically prioritize mockData.ts!
-    if (savedFingerprint !== CURRENT_RECENT_FINGERPRINT) {
-      localStorage.removeItem("benbalfas_recent_jokis");
-      localStorage.setItem(
-        "benbalfas_recent_fingerprint",
-        CURRENT_RECENT_FINGERPRINT,
-      );
-      return INITIAL_RECENT_JOKIS;
-    }
-
     if (saved) {
       try {
-        return JSON.parse(saved);
-      } catch {
-        return INITIAL_RECENT_JOKIS;
-      }
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch {}
     }
     return INITIAL_RECENT_JOKIS;
   });
 
-  // Watch for mockData.ts changes
-  useEffect(() => {
-    const savedFingerprint = localStorage.getItem(
-      "benbalfas_recent_fingerprint",
-    );
-    if (savedFingerprint !== CURRENT_RECENT_FINGERPRINT) {
-      localStorage.removeItem("benbalfas_recent_jokis");
-      localStorage.setItem(
-        "benbalfas_recent_fingerprint",
-        CURRENT_RECENT_FINGERPRINT,
-      );
-      setRecentJokis(INITIAL_RECENT_JOKIS);
-    }
-  }, [CURRENT_RECENT_FINGERPRINT]);
-
-  // Real-time listener: Otomatis perbarui Data Joki Terakhir ketika pesanan baru masuk dari checkout
+  // Real-time listener: Otomatis perbarui Data Joki Terakhir ketika pesanan baru masuk dari checkout atau update owner
   useEffect(() => {
     const handleRecentJokisUpdated = (event: any) => {
       if (event.detail && Array.isArray(event.detail)) {
@@ -104,23 +76,29 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     };
 
     window.addEventListener("benbalfas_recent_jokis_updated", handleRecentJokisUpdated);
+    window.addEventListener("storage", handleRecentJokisUpdated);
     return () => {
       window.removeEventListener("benbalfas_recent_jokis_updated", handleRecentJokisUpdated);
+      window.removeEventListener("storage", handleRecentJokisUpdated);
     };
   }, []);
 
   const [activeJokiIndex, setActiveJokiIndex] = useState(0);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [newJokiForm, setNewJokiForm] = useState<Partial<RecentJoki>>({
+  const [newJokiForm, setNewJokiForm] = useState({
     clientName: "Klien Baru (Kota)",
-    packageName: "Paket All-In (Phase Clear)",
+    packageName: "Paket Event Weekend (italy, POTW, dll)",
     initialRating: 1400,
     targetRating: 1850,
-    status: "Selesai",
-    duration: "24 Jam",
+    status: "Selesai" as "Selesai" | "Sedang Proses",
+    duration: "4 Jam",
     date: "Hari Ini",
-    winStreak: 15,
-    platform: "steam",
+    winStreak: 6,
+    platform: "steam" as GamingPlatform,
+    recordType: "wdl" as "points" | "wdl",
+    win: 5,
+    draw: 0,
+    loss: 0,
   });
 
   const currentJoki =
@@ -128,27 +106,42 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   const handleAddRecentJoki = (e: React.FormEvent) => {
     e.preventDefault();
+    const isWdl = newJokiForm.recordType === 'wdl' || newJokiForm.packageName.toLowerCase().includes('weekend');
     const created: RecentJoki = {
       id: "rj-" + Date.now(),
       clientName: newJokiForm.clientName || "Klien Baru",
-      packageName: newJokiForm.packageName || "Paket Divisi 1",
-      initialRating: Number(newJokiForm.initialRating) || 1400,
-      targetRating: Number(newJokiForm.targetRating) || 1850,
+      packageName: newJokiForm.packageName || (isWdl ? "Paket Event Weekend" : "Paket Divisi 1"),
       status: (newJokiForm.status as "Selesai" | "Sedang Proses") || "Selesai",
-      duration: newJokiForm.duration || "24 Jam",
+      duration: newJokiForm.duration || "1 Hari",
       date: newJokiForm.date || "Hari Ini",
-      winStreak: Number(newJokiForm.winStreak) || 12,
+      winStreak: Number(newJokiForm.winStreak) || (isWdl ? Number(newJokiForm.win) || 5 : 12),
       platform: (newJokiForm.platform as GamingPlatform) || "steam",
+      recordType: isWdl ? 'wdl' : 'points',
+      initialRating: isWdl ? undefined : Number(newJokiForm.initialRating) || 1400,
+      targetRating: isWdl ? undefined : Number(newJokiForm.targetRating) || 1850,
+      wdlRecord: isWdl ? {
+        win: Number(newJokiForm.win) || 0,
+        draw: Number(newJokiForm.draw) || 0,
+        loss: Number(newJokiForm.loss) || 0,
+      } : undefined,
     };
     const updated = [created, ...recentJokis];
     setRecentJokis(updated);
     localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
-    localStorage.setItem(
-      "benbalfas_recent_fingerprint",
-      CURRENT_RECENT_FINGERPRINT,
-    );
+    window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: updated }));
     setIsEditModalOpen(false);
     setActiveJokiIndex(0);
+  };
+
+  const handleDeleteActiveJoki = (id: string) => {
+    if (confirm('Hapus item joki ini dari etalase Data Joki Terakhir?')) {
+      const updated = recentJokis.filter((j) => j.id !== id);
+      const nextList = updated.length > 0 ? updated : INITIAL_RECENT_JOKIS;
+      setRecentJokis(nextList);
+      localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(nextList));
+      window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: nextList }));
+      setActiveJokiIndex(0);
+    }
   };
 
   return (
@@ -350,14 +343,26 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
                     {/* Edit button ONLY visible in secret owner mode */}
                     {isAdmin && (
-                      <button
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="p-1.5 px-2 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[11px] font-bold flex items-center gap-1 border border-cyan-500/30 shrink-0"
-                        title="Edit Data Joki (Owner Mode)"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                        <span className="hidden xs:inline">Update</span>
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => setIsEditModalOpen(true)}
+                          className="p-1.5 px-2 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[11px] font-bold flex items-center gap-1 border border-cyan-500/30 shrink-0"
+                          title="Tambah / Update Data Joki (Owner Mode)"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          <span className="hidden xs:inline">+ Tambah Data</span>
+                        </button>
+                        {recentJokis.length > 1 && (
+                          <button
+                            onClick={() => handleDeleteActiveJoki(currentJoki.id)}
+                            className="p-1.5 px-2 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[11px] font-bold flex items-center gap-1 border border-rose-500/30 shrink-0"
+                            title="Hapus data joki ini"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span className="hidden xs:inline">Hapus</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -402,41 +407,80 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       </span>
                     </div>
 
-                    {/* Rating Progression Metric (Responsive 3-Column Grid) */}
-                    <div className="grid grid-cols-3 items-center gap-1 sm:gap-2 pt-1 text-center bg-white/70 dark:bg-slate-950/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 w-full min-w-0">
-                      {/* Initial Points */}
-                      <div className="text-left min-w-0">
-                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono uppercase tracking-wider truncate">
-                          Poin Awal
-                        </p>
-                        <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-slate-900 dark:text-slate-100 truncate">
-                          {currentJoki.initialRating} <span className="text-[10px] font-normal text-slate-400">Pts</span>
-                        </p>
-                      </div>
-
-                      {/* Middle Diff + Progress Bar */}
-                      <div className="flex flex-col items-center justify-center px-0.5 min-w-0">
-                        <span className="text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold font-mono whitespace-nowrap">
-                          +{currentJoki.targetRating - currentJoki.initialRating} ⚡️
-                        </span>
-                        <div className="w-full max-w-[65px] sm:max-w-[85px] h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full my-1 overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-full animate-pulse"></div>
+                    {/* Match Metric: W-D-L for Weekend Event OR Rating Points for Division */}
+                    {currentJoki.recordType === 'wdl' || currentJoki.wdlRecord || !currentJoki.initialRating ? (
+                      <div className="bg-white/70 dark:bg-slate-950/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 w-full min-w-0">
+                        <div className="flex items-center justify-between mb-1.5 px-0.5">
+                          <span className="text-[10px] font-mono text-cyan-600 dark:text-cyan-400 font-bold uppercase tracking-wider">
+                            Rekor Match (W - D - L)
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-500">
+                            Durasi: {currentJoki.duration}
+                          </span>
                         </div>
-                        <span className="text-[9px] sm:text-[10px] text-slate-500 font-mono truncate">
-                          {currentJoki.duration}
-                        </span>
+                        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center">
+                          <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                            <p className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                              WIN (MENANG)
+                            </p>
+                            <p className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
+                              {currentJoki.wdlRecord?.win ?? currentJoki.winStreak ?? 0}
+                            </p>
+                          </div>
+                          <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                            <p className="text-[9px] sm:text-[10px] font-bold text-amber-600 dark:text-amber-400 font-mono">
+                              DRAW (SERI)
+                            </p>
+                            <p className="text-base sm:text-lg font-black font-mono text-amber-600 dark:text-amber-400">
+                              {currentJoki.wdlRecord?.draw ?? 0}
+                            </p>
+                          </div>
+                          <div className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                            <p className="text-[9px] sm:text-[10px] font-bold text-rose-600 dark:text-rose-400 font-mono">
+                              LOSS (KALAH)
+                            </p>
+                            <p className="text-base sm:text-lg font-black font-mono text-rose-600 dark:text-rose-400">
+                              {currentJoki.wdlRecord?.loss ?? 0}
+                            </p>
+                          </div>
+                        </div>
                       </div>
+                    ) : (
+                      <div className="grid grid-cols-3 items-center gap-1 sm:gap-2 pt-1 text-center bg-white/70 dark:bg-slate-950/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 w-full min-w-0">
+                        {/* Initial Points */}
+                        <div className="text-left min-w-0">
+                          <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono uppercase tracking-wider truncate">
+                            Poin Awal
+                          </p>
+                          <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-slate-900 dark:text-slate-100 truncate">
+                            {currentJoki.initialRating} <span className="text-[10px] font-normal text-slate-400">Pts</span>
+                          </p>
+                        </div>
 
-                      {/* Target Points */}
-                      <div className="text-right min-w-0">
-                        <p className="text-[9px] sm:text-[10px] text-amber-500 font-mono uppercase tracking-wider truncate">
-                          Hasil Akhir
-                        </p>
-                        <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-amber-500 dark:text-amber-300 truncate">
-                          {currentJoki.targetRating} <span className="text-[10px] font-normal">Pts</span>
-                        </p>
+                        {/* Middle Diff + Progress Bar */}
+                        <div className="flex flex-col items-center justify-center px-0.5 min-w-0">
+                          <span className="text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold font-mono whitespace-nowrap">
+                            +{((currentJoki.targetRating || 0) - (currentJoki.initialRating || 0))} ⚡️
+                          </span>
+                          <div className="w-full max-w-[65px] sm:max-w-[85px] h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full my-1 overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-full animate-pulse"></div>
+                          </div>
+                          <span className="text-[9px] sm:text-[10px] text-slate-500 font-mono truncate">
+                            {currentJoki.duration}
+                          </span>
+                        </div>
+
+                        {/* Target Points */}
+                        <div className="text-right min-w-0">
+                          <p className="text-[9px] sm:text-[10px] text-amber-500 font-mono uppercase tracking-wider truncate">
+                            Hasil Akhir
+                          </p>
+                          <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-amber-500 dark:text-amber-300 truncate">
+                            {currentJoki.targetRating} <span className="text-[10px] font-normal">Pts</span>
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Highlight All-In Package Banner */}
@@ -601,41 +645,127 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
-                    Poin Awal
-                  </label>
-                  <input
-                    type="number"
-                    value={newJokiForm.initialRating}
-                    onChange={(e) =>
-                      setNewJokiForm({
-                        ...newJokiForm,
-                        initialRating: Number(e.target.value),
-                      })
-                    }
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
-                    Poin Akhir / Target
-                  </label>
-                  <input
-                    type="number"
-                    value={newJokiForm.targetRating}
-                    onChange={(e) =>
-                      setNewJokiForm({
-                        ...newJokiForm,
-                        targetRating: Number(e.target.value),
-                      })
-                    }
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono"
-                  />
+              {/* Pilihan Format Statistik: Poin MMR vs Rekor W-D-L */}
+              <div>
+                <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                  Format Statistik Joki
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewJokiForm({ ...newJokiForm, recordType: 'points' })}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                      newJokiForm.recordType === 'points'
+                        ? 'bg-cyan-500 text-white border-cyan-500 shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    Rating Poin (Divisi 1-3)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewJokiForm({ ...newJokiForm, recordType: 'wdl' })}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                      newJokiForm.recordType === 'wdl'
+                        ? 'bg-cyan-500 text-white border-cyan-500 shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    W - D - L (Event Weekend)
+                  </button>
                 </div>
               </div>
+
+              {newJokiForm.recordType === 'wdl' ? (
+                <div>
+                  <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                    Rekor Pertandingan Event (W - D - L)
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">Win (Menang)</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newJokiForm.win}
+                        onChange={(e) =>
+                          setNewJokiForm({
+                            ...newJokiForm,
+                            win: Number(e.target.value),
+                          })
+                        }
+                        className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold text-center"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 block mb-0.5">Draw (Seri)</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newJokiForm.draw}
+                        onChange={(e) =>
+                          setNewJokiForm({
+                            ...newJokiForm,
+                            draw: Number(e.target.value),
+                          })
+                        }
+                        className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold text-center"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 block mb-0.5">Loss (Kalah)</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newJokiForm.loss}
+                        onChange={(e) =>
+                          setNewJokiForm({
+                            ...newJokiForm,
+                            loss: Number(e.target.value),
+                          })
+                        }
+                        className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                      Poin Awal
+                    </label>
+                    <input
+                      type="number"
+                      value={newJokiForm.initialRating}
+                      onChange={(e) =>
+                        setNewJokiForm({
+                          ...newJokiForm,
+                          initialRating: Number(e.target.value),
+                        })
+                      }
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                      Poin Akhir / Target
+                    </label>
+                    <input
+                      type="number"
+                      value={newJokiForm.targetRating}
+                      onChange={(e) =>
+                        setNewJokiForm({
+                          ...newJokiForm,
+                          targetRating: Number(e.target.value),
+                        })
+                      }
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">

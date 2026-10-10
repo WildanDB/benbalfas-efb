@@ -66,11 +66,17 @@ export interface RecentJoki {
   id: string;
   clientName: string;
   packageName: string;
-  initialRating: number;
-  targetRating: number;
+  initialRating?: number;
+  targetRating?: number;
   status: 'Selesai' | 'Sedang Proses';
   duration: string;
   date: string;
   winStreak?: number;
   platform?: GamingPlatform;
+  recordType?: 'points' | 'wdl'; // 'points' (default) atau 'wdl' (Weekend Event)
+  wdlRecord?: {
+    win: number;
+    draw: number;
+    loss: number;
+  };
 }

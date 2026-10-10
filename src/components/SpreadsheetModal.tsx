@@ -17,6 +17,10 @@ import {
   ShieldCheck,
   Gamepad2,
   ChevronRight,
+  Send,
+  Bot,
+  Settings,
+  AlertCircle,
 } from 'lucide-react';
 import {
   SpreadsheetOrderRecord,
@@ -24,6 +28,10 @@ import {
   exportSpreadsheetToCsv,
   copySpreadsheetRowToClipboard,
   getGoogleAppsScriptCodeTemplate,
+  getActiveGoogleSheetWebhookUrl,
+  getActiveTelegramConfig,
+  testGoogleSheetWebhook,
+  testTelegramNotification,
 } from '../utils/spreadsheet';
 import { formatRupiah } from '../utils/pricing';
 import { APP_CONFIG } from '../config/constants';
@@ -43,8 +51,22 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   const [showScriptGuide, setShowScriptGuide] = useState(false);
   const [isCopiedScript, setIsCopiedScript] = useState(false);
 
+  // Cloud & Telegram Settings State
+  const [webhookUrlInput, setWebhookUrlInput] = useState('');
+  const [telegramTokenInput, setTelegramTokenInput] = useState('');
+  const [telegramChatIdInput, setTelegramChatIdInput] = useState('');
+  const [isTestingSheet, setIsTestingSheet] = useState(false);
+  const [sheetTestResult, setSheetTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+  const [telegramTestResult, setTelegramTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [savedSettingsNotice, setSavedSettingsNotice] = useState(false);
+
   const loadRecords = () => {
     setRecords(getSpreadsheetRecords());
+    setWebhookUrlInput(getActiveGoogleSheetWebhookUrl());
+    const tel = getActiveTelegramConfig();
+    setTelegramTokenInput(tel.botToken);
+    setTelegramChatIdInput(tel.chatId);
   };
 
   useEffect(() => {
@@ -73,6 +95,30 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
       setIsCopiedScript(true);
       setTimeout(() => setIsCopiedScript(false), 2500);
     } catch {}
+  };
+
+  const handleSaveCloudSettings = () => {
+    localStorage.setItem('benbalfas_google_sheet_webhook_url', webhookUrlInput.trim());
+    localStorage.setItem('benbalfas_telegram_bot_token', telegramTokenInput.trim());
+    localStorage.setItem('benbalfas_telegram_chat_id', telegramChatIdInput.trim());
+    setSavedSettingsNotice(true);
+    setTimeout(() => setSavedSettingsNotice(false), 3000);
+  };
+
+  const handleTestSheet = async () => {
+    setIsTestingSheet(true);
+    setSheetTestResult(null);
+    const res = await testGoogleSheetWebhook(webhookUrlInput.trim());
+    setIsTestingSheet(false);
+    setSheetTestResult(res);
+  };
+
+  const handleTestTelegram = async () => {
+    setIsTestingTelegram(true);
+    setTelegramTestResult(null);
+    const res = await testTelegramNotification(telegramTokenInput.trim(), telegramChatIdInput.trim());
+    setIsTestingTelegram(false);
+    setTelegramTestResult(res);
   };
 
   const handleToggleStatus = (orderId: string) => {
@@ -171,8 +217,8 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
               onClick={() => setShowScriptGuide(!showScriptGuide)}
               className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition border border-slate-300 dark:border-slate-700"
             >
-              <Code2 className="w-4 h-4 text-cyan-500" />
-              <span>Auto-Sync Cloud</span>
+              <Settings className="w-4 h-4 text-cyan-500" />
+              <span>Integrasi Cloud & Bot</span>
             </button>
 
             <button
@@ -184,36 +230,187 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
           </div>
         </div>
 
-        {/* Cloud Apps Script Guide Accordion */}
+        {/* Cloud Apps Script & Telegram Control Center */}
         {showScriptGuide && (
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-cyan-500/30 space-y-3 animate-fadeIn text-xs">
-            <div className="flex items-center justify-between">
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-cyan-500/30 space-y-4 animate-fadeIn text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                <span className="font-bold text-slate-900 dark:text-white">
-                  Panduan Auto-Sync ke Google Drive Ben Balfas Aset (1 Menit Jadi)
+                <Settings className="w-5 h-5 text-cyan-500" />
+                <span className="font-bold text-sm text-slate-900 dark:text-white">
+                  Pusat Integrasi Real-Time: Google Sheets & Telegram Bot
                 </span>
               </div>
-              <button
-                onClick={handleCopyScript}
-                className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1 transition"
-              >
-                {isCopiedScript ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{isCopiedScript ? 'Kode Tersalin!' : 'Salin Kode Google Apps Script'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {savedSettingsNotice && (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1 animate-pulse">
+                    <CheckCircle2 className="w-4 h-4" /> Tersimpan!
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSaveCloudSettings}
+                  className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-sm transition cursor-pointer"
+                >
+                  Simpan Semua Pengaturan
+                </button>
+              </div>
             </div>
 
-            <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300 font-normal leading-relaxed">
-              <li>Buat file <strong>Google Sheet</strong> baru di Google Drive Ben Balfas Aset.</li>
-              <li>Di Google Sheet tersebut, klik menu <strong>Ekstensi (Extensions)</strong> &gt; <strong>Apps Script</strong>.</li>
-              <li>Hapus kode bawaan, lalu paste kode yang telah Anda salin dengan tombol di atas.</li>
-              <li>Klik tombol <strong>Deploy (Terapkan)</strong> &gt; <strong>New deployment</strong> &gt; Pilih jenis <strong>Web App</strong>.</li>
-              <li>Set akses: <em>"Who has access: Anyone"</em>, lalu klik Deploy dan salin URL Web App yang muncul.</li>
-              <li>Paste URL tersebut ke variabel <code className="bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded font-mono text-cyan-600 dark:text-cyan-400">googleSheetWebhookUrl</code> di file <code className="bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded font-mono">constants.ts</code>!</li>
-            </ol>
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-mono">
-              💡 Catatan: Walaupun webhook belum diaktifkan, seluruh pesanan tetap 100% tersimpan aman di database lokal dan bisa di-download via tombol Download (.CSV) kapan saja!
-            </p>
+            {/* Grid 2 Kolom: Google Sheet Webhook & Telegram Bot */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Kolom 1: Google Sheets Webhook */}
+              <div className="p-3.5 rounded-xl bg-white dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-100">
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                    <span>1. Google Sheets Drive Aset</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyScript}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center gap-1 border border-emerald-500/30 transition cursor-pointer"
+                  >
+                    {isCopiedScript ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{isCopiedScript ? 'Tersalin!' : 'Salin Kode Script'}</span>
+                  </button>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-[11px] space-y-1 text-slate-600 dark:text-slate-300">
+                  <p className="font-semibold text-slate-800 dark:text-slate-200">
+                    Target Spreadsheet Anda:
+                  </p>
+                  <a
+                    href="https://docs.google.com/spreadsheets/d/1KcBcdx0W8y46vGjcs9QXVLB744KnvOY8YO1bXWSsJPo/edit?gid=0#gid=0"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-600 dark:text-cyan-400 underline font-mono break-all inline-flex items-center gap-1"
+                  >
+                    <span>1KcBcdx0W8y46vGjcs9QXVLB744KnvOY8YO1bXWSsJPo</span>
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                  </a>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    Buka link sheet di atas ➔ menu <strong>Ekstensi</strong> ➔ <strong>Apps Script</strong> ➔ Paste kode script ➔ <strong>Deploy</strong> sebagai Web App (Who has access: Anyone) ➔ Paste URL /exec di bawah:
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    URL Google Apps Script Web App (/exec):
+                  </label>
+                  <input
+                    type="text"
+                    value={webhookUrlInput}
+                    onChange={(e) => setWebhookUrlInput(e.target.value)}
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleTestSheet}
+                    disabled={isTestingSheet || !webhookUrlInput}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isTestingSheet ? 'Menguji...' : '🧪 Tes Kirim ke Sheet'}</span>
+                  </button>
+                  <span className="text-[10px] text-slate-400">Mode No-CORS Active</span>
+                </div>
+
+                {sheetTestResult && (
+                  <div
+                    className={`p-2 rounded-lg text-[11px] font-medium border ${
+                      sheetTestResult.success
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    {sheetTestResult.message}
+                  </div>
+                )}
+              </div>
+
+              {/* Kolom 2: Telegram Bot Alert */}
+              <div className="p-3.5 rounded-xl bg-white dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-100">
+                    <Bot className="w-4 h-4 text-cyan-500" />
+                    <span>2. Notifikasi Bot Telegram Admin</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-bold border border-cyan-500/20">
+                    Instan Alert
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-[11px] space-y-1 text-slate-600 dark:text-slate-300">
+                  <p className="font-semibold text-slate-800 dark:text-slate-200">
+                    Cara Mendapatkan Token & Chat ID:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                    <li>Buka <strong>@BotFather</strong> di Telegram ➔ ketik <code>/newbot</code> ➔ Salin Token API.</li>
+                    <li>Buka <strong>@userinfobot</strong> di Telegram ➔ klik Start ➔ Salin nomor <strong>Id</strong> Anda.</li>
+                    <li>Buka bot yang baru dibuat ➔ klik <strong>Start</strong> agar bot berhak kirim pesan ke Anda!</li>
+                  </ol>
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-0.5">
+                      Telegram Bot Token:
+                    </label>
+                    <input
+                      type="text"
+                      value={telegramTokenInput}
+                      onChange={(e) => setTelegramTokenInput(e.target.value)}
+                      placeholder="Contoh: 7123456789:AAHxyz..."
+                      className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-0.5">
+                      Telegram Admin Chat ID:
+                    </label>
+                    <input
+                      type="text"
+                      value={telegramChatIdInput}
+                      onChange={(e) => setTelegramChatIdInput(e.target.value)}
+                      placeholder="Contoh: 1234567890"
+                      className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleTestTelegram}
+                    disabled={isTestingTelegram || !telegramTokenInput || !telegramChatIdInput}
+                    className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isTestingTelegram ? 'Menguji...' : '🧪 Tes Notif Telegram'}</span>
+                  </button>
+                  <span className="text-[10px] text-slate-400">Official Bot API</span>
+                </div>
+
+                {telegramTestResult && (
+                  <div
+                    className={`p-2 rounded-lg text-[11px] font-medium border ${
+                      telegramTestResult.success
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    {telegramTestResult.message}
+                  </div>
+                )}
+              </div>
+
+            </div>
           </div>
         )}
 
@@ -332,13 +529,21 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
 
                       {/* Poin Awal ➔ Target */}
                       <td className="p-3 whitespace-nowrap text-xs">
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                          {r.initialRating}
-                        </span>
-                        <span className="text-slate-400 mx-1">➔</span>
-                        <span className="font-bold text-cyan-600 dark:text-cyan-400">
-                          {r.targetRating} Pts
-                        </span>
+                        {r.orderDescription.toLowerCase().includes('weekend') || !r.initialRating ? (
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold font-mono text-[11px] border border-emerald-500/30">
+                            Event Match (W - D - L)
+                          </span>
+                        ) : (
+                          <>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">
+                              {r.initialRating}
+                            </span>
+                            <span className="text-slate-400 mx-1">➔</span>
+                            <span className="font-bold text-cyan-600 dark:text-cyan-400">
+                              {r.targetRating} Pts
+                            </span>
+                          </>
+                        )}
                       </td>
 
                       {/* Total Bayar */}

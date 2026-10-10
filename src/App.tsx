@@ -25,8 +25,21 @@ export function App() {
 
   // Admin Mode State (?admin=benbalfas or stored in localStorage)
   const [isAdmin, setIsAdmin] = useState(false);
-  const promoStatus = getPromoStatus();
-  const referralStatus = getReferralStatus();
+  const [promoStatus, setPromoStatus] = useState(getPromoStatus);
+  const [referralStatus, setReferralStatus] = useState(getReferralStatus);
+
+  useEffect(() => {
+    const handlePromoSync = () => {
+      setPromoStatus(getPromoStatus());
+      setReferralStatus(getReferralStatus());
+    };
+    window.addEventListener('benbalfas_promo_updated', handlePromoSync);
+    window.addEventListener('storage', handlePromoSync);
+    return () => {
+      window.removeEventListener('benbalfas_promo_updated', handlePromoSync);
+      window.removeEventListener('storage', handlePromoSync);
+    };
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -41,14 +54,12 @@ export function App() {
   const handleResetPromo = () => {
     if (confirm('Kembalikan kuota promo 3 klien pertama ke 3 slot penuh?')) {
       resetPromoSlots();
-      window.location.reload();
     }
   };
 
   const handleResetReferral = () => {
-    if (confirm('Kembalikan kuota kode referral "jack efo" ke 5 slot penuh?')) {
+    if (confirm('Kembalikan kuota kode referral ke 5 slot penuh?')) {
       resetReferralSlots();
-      window.location.reload();
     }
   };
 

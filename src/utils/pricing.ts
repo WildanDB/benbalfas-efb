@@ -140,6 +140,7 @@ export function generateWhatsAppLink(
     platform?: GamingPlatform;
     hasTransferProof?: boolean;
     promoApplied?: string;
+    referralApplied?: string;
   }
 ): string {
   let cleanPhone = ownerPhone.replace(/\D/g, '');
@@ -155,6 +156,7 @@ export function generateWhatsAppLink(
       (customOrderInfo.platform ? `\n🎮 Platform: ${getPlatformLabel(customOrderInfo.platform)}` : '') +
       `\n⚡️ Layanan: ${customOrderInfo.orderDetails}` +
       (customOrderInfo.promoApplied ? `\n🎁 Promo: ${customOrderInfo.promoApplied}` : '') +
+      (customOrderInfo.referralApplied ? `\n🎟️ Referral: ${customOrderInfo.referralApplied}` : '') +
       (customOrderInfo.amount ? `\n💰 Total: ${customOrderInfo.amount}` : '') +
       (customOrderInfo.hasTransferProof ? `\n🧾 Bukti Transfer: Telah dilampirkan` : '') +
       `\n\nSaya standby untuk koordinasi login akun. Terima kasih!`;
@@ -166,7 +168,7 @@ export function generateWhatsAppLink(
 // =========================================================================
 // SISTEM PROMO RILIS PERDANA (3 KLIEN PERTAMA)
 // - Diskon 20% untuk semua kategori (Kalkulator Poin & Paket Standar)
-// - Diskon 10% khusus Paket All-In (sultan-phase-clear)
+// - Diskon 10% khusus Paket All-In (sultan-phase-clear) & Paket Event Weekend (event-weekend)
 // =========================================================================
 
 export interface PromoStatus {
@@ -185,6 +187,11 @@ export const PROMO_CONFIG = {
   title: 'Promo Spesial Rilis Perdana',
   badgeText: 'Diskon 3 Klien Pertama',
 };
+
+export function isTenPercentDiscountPackage(packageId?: string): boolean {
+  if (!packageId) return false;
+  return packageId === 'sultan-phase-clear' || packageId === 'event-weekend';
+}
 
 export function getPromoSlotsClaimed(): number {
   if (typeof window === 'undefined') return 0;
@@ -236,7 +243,7 @@ export interface DiscountCalculation {
 
 export function calculateDiscount(
   basePrice: number,
-  isAllIn: boolean,
+  isTenPercentTier: boolean = false,
   forcePromoActive?: boolean
 ): DiscountCalculation {
   const promoStatus = getPromoStatus();
@@ -253,7 +260,7 @@ export function calculateDiscount(
     };
   }
 
-  const discountPercent = isAllIn
+  const discountPercent = isTenPercentTier
     ? PROMO_CONFIG.allInDiscountPercent
     : PROMO_CONFIG.generalDiscountPercent;
   const discountAmount = Math.round((basePrice * discountPercent) / 100);
@@ -268,3 +275,105 @@ export function calculateDiscount(
     promoLabel: `Diskon ${discountPercent}% (Promo 3 Klien Pertama)`,
   };
 }
+
+// =========================================================================
+// SISTEM KODE REFERRAL (JACK EFO)
+// - Kode: "jack efo" (case-insensitive)
+// - Diskon: Potongan langsung Rp 10.000 (10k)
+// - Kuota: 5 Orang (5 Slot)
+// =========================================================================
+
+export interface ReferralStatus {
+  code: string;
+  totalSlots: number;
+  remainingSlots: number;
+  claimedSlots: number;
+  discountAmount: number;
+  isActive: boolean;
+}
+
+export const REFERRAL_CONFIG = {
+  code: 'jack efo',
+  totalSlots: 5,
+  discountAmount: 10000,
+};
+
+export function getReferralSlotsClaimed(): number {
+  if (typeof window === 'undefined') return 0;
+  const saved = localStorage.getItem('benbalfas_referral_claimed_count');
+  if (saved !== null) {
+    const parsed = parseInt(saved, 10);
+    return isNaN(parsed) ? 0 : Math.min(REFERRAL_CONFIG.totalSlots, Math.max(0, parsed));
+  }
+  return 0;
+}
+
+export function getReferralStatus(): ReferralStatus {
+  const claimed = getReferralSlotsClaimed();
+  const remaining = Math.max(0, REFERRAL_CONFIG.totalSlots - claimed);
+  return {
+    code: REFERRAL_CONFIG.code,
+    totalSlots: REFERRAL_CONFIG.totalSlots,
+    remainingSlots: remaining,
+    claimedSlots: claimed,
+    discountAmount: REFERRAL_CONFIG.discountAmount,
+    isActive: remaining > 0,
+  };
+}
+
+export function validateReferralCode(inputCode: string): {
+  isValid: boolean;
+  discountAmount: number;
+  message: string;
+} {
+  const cleanInput = inputCode.trim().toLowerCase().replace(/\s+/g, ' ');
+  const targetCode = REFERRAL_CONFIG.code.toLowerCase();
+
+  if (!cleanInput) {
+    return {
+      isValid: false,
+      discountAmount: 0,
+      message: 'Masukkan kode referral terlebih dahulu.',
+    };
+  }
+
+  if (cleanInput !== targetCode) {
+    return {
+      isValid: false,
+      discountAmount: 0,
+      message: 'Kode referral tidak ditemukan atau salah.',
+    };
+  }
+
+  const status = getReferralStatus();
+  if (status.remainingSlots <= 0) {
+    return {
+      isValid: false,
+      discountAmount: 0,
+      message: 'Maaf, kuota kode referral "jack efo" sudah habis (5/5 terpakai).',
+    };
+  }
+
+  return {
+    isValid: true,
+    discountAmount: REFERRAL_CONFIG.discountAmount,
+    message: `Kode "${REFERRAL_CONFIG.code}" berhasil! Diskon Rp 10.000 diterapkan (Sisa ${status.remainingSlots} slot).`,
+  };
+}
+
+export function claimReferralSlot(): number {
+  if (typeof window === 'undefined') return 0;
+  const current = getReferralSlotsClaimed();
+  if (current < REFERRAL_CONFIG.totalSlots) {
+    const next = current + 1;
+    localStorage.setItem('benbalfas_referral_claimed_count', next.toString());
+    return next;
+  }
+  return current;
+}
+
+export function resetReferralSlots(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('benbalfas_referral_claimed_count');
+}
+

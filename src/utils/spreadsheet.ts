@@ -16,6 +16,8 @@ export interface SpreadsheetOrderRecord {
   targetRating: number;       // Poin Target (Data Joki Terakhir)
   originalPrice: number;      // Harga Sebelum Diskon
   discountPercent: number;    // Persentase Diskon (%)
+  referralCode?: string;      // Kode Referral (e.g. 'jack efo')
+  referralDiscount?: number;  // Diskon Referral (e.g. 10000)
   finalPrice: number;         // Total Tagihan (Rp)
   duration: string;           // Estimasi SLA
   status: 'Sedang Proses' | 'Selesai'; // Status Joki
@@ -85,6 +87,8 @@ export const sendToGoogleSheetWebhook = async (record: SpreadsheetOrderRecord): 
         targetRating: record.targetRating,
         originalPrice: record.originalPrice,
         discountPercent: record.discountPercent + '%',
+        referralCode: record.referralCode || '-',
+        referralDiscount: record.referralDiscount || 0,
         finalPrice: record.finalPrice,
         duration: record.duration,
         status: record.status,
@@ -183,6 +187,8 @@ export const exportSpreadsheetToCsv = (records?: SpreadsheetOrderRecord[]): void
     'Target Poin (Data Joki)',
     'Harga Normal (Rp)',
     'Diskon Promo (%)',
+    'Kode Referral',
+    'Diskon Referral (Rp)',
     'Total Pembayaran (Rp)',
     'Estimasi Selesai (SLA)',
     'Status Pengerjaan',
@@ -211,6 +217,8 @@ export const exportSpreadsheetToCsv = (records?: SpreadsheetOrderRecord[]): void
     escapeCsv(r.targetRating),
     escapeCsv(r.originalPrice),
     escapeCsv(r.discountPercent + '%'),
+    escapeCsv(r.referralCode || '-'),
+    escapeCsv(r.referralDiscount ? formatRupiah(r.referralDiscount) : 'Rp 0'),
     escapeCsv(r.finalPrice),
     escapeCsv(r.duration),
     escapeCsv(r.status),
@@ -256,6 +264,8 @@ export const copySpreadsheetRowToClipboard = async (
     record.targetRating,
     record.originalPrice,
     record.discountPercent + '%',
+    record.referralCode || '-',
+    record.referralDiscount ? formatRupiah(record.referralDiscount) : 'Rp 0',
     record.finalPrice,
     record.duration,
     record.status,

@@ -49,6 +49,27 @@ export const INITIAL_RECENT_JOKIS: RecentJoki[] = [
 
 export const PACKAGES_DATA: JokiPackage[] = [
   {
+    id: "event-weekend",
+    title: "Paket Event Weekend",
+    badge: "Event Khusus",
+    subtitle: "(italy, POTW, dll)",
+    price: 70000,
+    formattedPrice: "Rp 70.000",
+    sla: "1 Hari",
+    isPopular: false,
+    isDecoy: false,
+    colorTheme: "blue",
+    benefits: [
+      "Sapu Bersih Event Weekend eFootball",
+      "Event Match Challenge & Tour (italy, POTW, dll)",
+      "Klaim Seluruh Hadiah GP, Skill Token & Hadiah Event",
+      "100% Skill Murni Pro Player, Anti-Scripting & Anti-Banned",
+      "Estimasi Selesai Cepat Dalam Hitungan Jam / 1 Hari",
+      "🛡️ Proteksi IP & Keamanan Akun 100% Garansi Anti-Banned",
+    ],
+    ctaText: "Pilih Event Weekend (70k)",
+  },
+  {
     id: "fast-track",
     title: "Paket Fast Track",
     badge: "Termurah & Cepat",

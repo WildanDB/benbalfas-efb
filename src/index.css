@@ -83,3 +83,25 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Mobile marquee running text */
+@keyframes marqueeMobile {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marqueeMobile 22s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+

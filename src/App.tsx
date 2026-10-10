@@ -11,7 +11,7 @@ import { SpreadsheetModal } from './components/SpreadsheetModal';
 import { OrderType, GamingPlatform } from './types';
 import { Calculator, Sparkles, MessageCircle, Flame, ShieldAlert, LogOut, RotateCcw, FileSpreadsheet } from 'lucide-react';
 import { APP_CONFIG } from './config/constants';
-import { getPromoStatus, resetPromoSlots } from './utils/pricing';
+import { getPromoStatus, resetPromoSlots, getReferralStatus, resetReferralSlots } from './utils/pricing';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'joki' | 'trophy'>('home');
@@ -26,6 +26,7 @@ export function App() {
   // Admin Mode State (?admin=benbalfas or stored in localStorage)
   const [isAdmin, setIsAdmin] = useState(false);
   const promoStatus = getPromoStatus();
+  const referralStatus = getReferralStatus();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -40,6 +41,13 @@ export function App() {
   const handleResetPromo = () => {
     if (confirm('Kembalikan kuota promo 3 klien pertama ke 3 slot penuh?')) {
       resetPromoSlots();
+      window.location.reload();
+    }
+  };
+
+  const handleResetReferral = () => {
+    if (confirm('Kembalikan kuota kode referral "jack efo" ke 5 slot penuh?')) {
+      resetReferralSlots();
       window.location.reload();
     }
   };
@@ -103,12 +111,30 @@ export function App() {
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 dark:bg-[#070A12] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black transition-colors duration-300 efootball-pitch-bg">
       
-      {/* Top Banner Notice */}
-      <div className="bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 py-1.5 px-3 text-center text-[11px] sm:text-xs font-bold text-white tracking-wide flex items-center justify-center gap-1.5 shadow-sm overflow-hidden w-full max-w-full">
-        <Sparkles className="w-3.5 h-3.5 shrink-0 fill-current animate-pulse text-amber-200" />
-        <span className="truncate sm:whitespace-normal">
-          🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot]
-        </span>
+      {/* Top Banner Notice: Sedikit dibesarkan, Running Text (Marquee) di Mobile, Static di Desktop */}
+      <div className="bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 py-1.5 px-3 text-white shadow-sm overflow-hidden w-full max-w-full">
+        {/* Mobile View: Tulisan berjalan (Marquee) */}
+        <div className="sm:hidden w-full overflow-hidden whitespace-nowrap flex items-center">
+          <div className="animate-marquee inline-flex items-center gap-3 text-xs font-bold tracking-wide">
+            <Sparkles className="w-3.5 h-3.5 shrink-0 fill-current animate-pulse text-amber-200" />
+            <span>
+              🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In & Event Weekend 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot] • Gunakan Kode Referral "jack efo" untuk Diskon 10k (Sisa {referralStatus.remainingSlots}/5 Slot)!
+            </span>
+            <span className="mx-2 text-amber-200">•</span>
+            <Sparkles className="w-3.5 h-3.5 shrink-0 fill-current animate-pulse text-amber-200" />
+            <span>
+              🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In & Event Weekend 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot] • Gunakan Kode Referral "jack efo" untuk Diskon 10k (Sisa {referralStatus.remainingSlots}/5 Slot)!
+            </span>
+          </div>
+        </div>
+
+        {/* Desktop View: Diam & Berada di Tengah */}
+        <div className="hidden sm:flex items-center justify-center gap-2 text-xs sm:text-sm font-bold tracking-wide text-center">
+          <Sparkles className="w-4 h-4 shrink-0 fill-current animate-pulse text-amber-200" />
+          <span>
+            🔥 PROMO RILIS PERDANA: Diskon 20% (Khusus All-In & Event Weekend 10%) untuk 3 Klien Pertama! — Sisa [{promoStatus.remainingSlots}/3 Slot] • Kode Referral "jack efo" (-10k)
+          </span>
+        </div>
       </div>
 
       {/* Floating Admin Toolbar */}
@@ -116,7 +142,9 @@ export function App() {
         <div className="bg-amber-500 text-slate-950 px-3 sm:px-4 py-2 text-xs font-bold flex flex-wrap items-center justify-between gap-2 shadow-lg sticky top-0 z-50 w-full max-w-full overflow-hidden">
           <div className="flex items-center gap-1.5 sm:gap-2 truncate">
             <ShieldAlert className="w-4 h-4 shrink-0" />
-            <span className="truncate">Mode Owner Aktif — Kuota Promo: {promoStatus.remainingSlots}/{promoStatus.totalSlots} Tersedia</span>
+            <span className="truncate">
+              Mode Owner — Promo: {promoStatus.remainingSlots}/{promoStatus.totalSlots} | Referral: {referralStatus.remainingSlots}/{referralStatus.totalSlots} Tersedia
+            </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
@@ -133,14 +161,22 @@ export function App() {
               title="Kembalikan kuota promo ke 3 slot penuh"
             >
               <RotateCcw className="w-3 h-3" />
-              <span>Reset Slot Promo</span>
+              <span>Reset Promo</span>
+            </button>
+            <button
+              onClick={handleResetReferral}
+              className="flex items-center gap-1 bg-slate-900 text-cyan-300 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold hover:bg-slate-800 transition"
+              title="Kembalikan kuota kode referral ke 5 slot penuh"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset Referral</span>
             </button>
             <button
               onClick={handleExitAdmin}
               className="shrink-0 flex items-center gap-1 bg-slate-950 text-amber-300 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold hover:bg-slate-800 transition"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Keluar Mode Owner</span>
+              <span>Keluar Owner</span>
             </button>
           </div>
         </div>

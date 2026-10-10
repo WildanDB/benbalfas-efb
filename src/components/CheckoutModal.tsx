@@ -16,6 +16,7 @@ import {
   Gamepad2,
   QrCode,
   Download,
+  Tag,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { OrderType, GamingPlatform } from "../types";
@@ -26,6 +27,9 @@ import {
   getPlatformLabel,
   calculateDiscount,
   claimPromoSlot,
+  isTenPercentDiscountPackage,
+  validateReferralCode,
+  claimReferralSlot,
 } from "../utils/pricing";
 import { APP_CONFIG } from "../config/constants";
 import {
@@ -68,6 +72,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [accountPassword, setAccountPassword] = useState("");
   const [paymentMethod] = useState<"qris">("qris");
 
+  // Referral Code State
+  const [referralInput, setReferralInput] = useState("");
+  const [appliedReferral, setAppliedReferral] = useState<{
+    code: string;
+    discountAmount: number;
+  } | null>(null);
+  const [referralFeedback, setReferralFeedback] = useState<{
+    type: "success" | "error" | null;
+    message: string;
+  }>({ type: null, message: "" });
+
   // Bukti Transfer State (File & Preview)
   const [transferProofPreview, setTransferProofPreview] = useState<
     string | null
@@ -86,21 +101,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       if (selectedPackageId) setSelectedPkgId(selectedPackageId);
       if (initialPlatform) setPlatform(initialPlatform);
       setIsSuccess(false);
+      setReferralInput("");
+      setAppliedReferral(null);
+      setReferralFeedback({ type: null, message: "" });
     }
   }, [isOpen, initialOrderType, selectedPackageId, initialPlatform]);
 
   if (!isOpen) return null;
 
   const currentPackage =
-    PACKAGES_DATA.find((p) => p.id === selectedPkgId) || PACKAGES_DATA[2];
+    PACKAGES_DATA.find((p) => p.id === selectedPkgId) || PACKAGES_DATA[0];
 
-  const isAllIn =
-    orderType === "package" && currentPackage.id === "sultan-phase-clear";
+  const isTenPercent =
+    orderType === "package" && isTenPercentDiscountPackage(currentPackage.id);
   const basePrice =
     orderType === "points" ? pointsData?.price || 420000 : currentPackage.price;
 
-  const promoDiscount = calculateDiscount(basePrice, isAllIn);
-  const finalPrice = promoDiscount.finalPrice;
+  const promoDiscount = calculateDiscount(basePrice, isTenPercent);
+  const referralDiscountAmount = appliedReferral ? appliedReferral.discountAmount : 0;
+  const finalPrice = Math.max(0, promoDiscount.finalPrice - referralDiscountAmount);
 
   const finalSla =
     orderType === "points" ? pointsData?.sla || "3 Hari" : currentPackage.sla;
@@ -177,6 +196,39 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setTransferProofName("");
   };
 
+  const handleApplyReferral = () => {
+    if (!referralInput.trim()) {
+      setReferralFeedback({
+        type: "error",
+        message: "Silakan masukkan kode referral terlebih dahulu.",
+      });
+      return;
+    }
+    const result = validateReferralCode(referralInput);
+    if (result.isValid) {
+      setAppliedReferral({
+        code: referralInput.trim(),
+        discountAmount: result.discountAmount,
+      });
+      setReferralFeedback({
+        type: "success",
+        message: result.message,
+      });
+    } else {
+      setAppliedReferral(null);
+      setReferralFeedback({
+        type: "error",
+        message: result.message,
+      });
+    }
+  };
+
+  const handleRemoveReferral = () => {
+    setAppliedReferral(null);
+    setReferralInput("");
+    setReferralFeedback({ type: null, message: "" });
+  };
+
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -210,6 +262,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       targetRating,
       originalPrice: promoDiscount.basePrice,
       discountPercent: promoDiscount.isApplied ? promoDiscount.discountPercent : 0,
+      referralCode: appliedReferral ? appliedReferral.code : undefined,
+      referralDiscount: referralDiscountAmount,
       finalPrice,
       duration: finalSla,
       status: "Sedang Proses",
@@ -236,6 +290,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       `⚡️ *Layanan:* ${orderDescription}\n` +
       (promoDiscount.isApplied
         ? `🎁 *Promo:* Diskon ${promoDiscount.discountPercent}% (Hemat ${formatRupiah(promoDiscount.discountAmount)})\n`
+        : "") +
+      (appliedReferral
+        ? `🎟️ *Kode Referral:* ${appliedReferral.code} (-${formatRupiah(referralDiscountAmount)})\n`
         : "") +
       `💰 *Total Tagihan:* ${formatRupiah(finalPrice)}\n` +
       `⏱️ *Estimasi SLA:* ${finalSla}\n` +
@@ -279,6 +336,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       claimPromoSlot();
     }
 
+    // Claim referral slot if referral was applied
+    if (appliedReferral) {
+      claimReferralSlot();
+    }
+
     // Save order history locally
     const existingOrders = JSON.parse(
       localStorage.getItem("benbalfas_orders") || "[]",
@@ -294,6 +356,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       discountApplied: promoDiscount.isApplied
         ? promoDiscount.discountPercent
         : 0,
+      referralCode: appliedReferral ? appliedReferral.code : null,
+      referralDiscount: referralDiscountAmount,
       clientName,
       whatsappNumber,
       accountUsername,
@@ -322,6 +386,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     hasTransferProof: !!transferProofPreview,
     promoApplied: promoDiscount.isApplied
       ? `${promoDiscount.promoLabel} (-${formatRupiah(promoDiscount.discountAmount)})`
+      : undefined,
+    referralApplied: appliedReferral
+      ? `${appliedReferral.code} (-${formatRupiah(referralDiscountAmount)})`
       : undefined,
   });
 
@@ -402,6 +469,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span className="font-bold">
                     -{formatRupiah(promoDiscount.discountAmount)} (
                     {promoDiscount.discountPercent}%)
+                  </span>
+                </div>
+              )}
+              {appliedReferral && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                  <span>Kode Referral:</span>
+                  <span className="font-bold">
+                    {appliedReferral.code} (-{formatRupiah(appliedReferral.discountAmount)})
                   </span>
                 </div>
               )}
@@ -559,8 +634,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-medium text-xs focus:border-cyan-400 focus:outline-none"
                 >
                   {PACKAGES_DATA.map((p) => {
-                    const isPkgAllIn = p.id === "sultan-phase-clear";
-                    const discount = calculateDiscount(p.price, isPkgAllIn);
+                    const isPkgTenPercent = isTenPercentDiscountPackage(p.id);
+                    const discount = calculateDiscount(p.price, isPkgTenPercent);
                     return (
                       <option key={p.id} value={p.id}>
                         {p.title} — {formatRupiah(discount.finalPrice)}{" "}
@@ -670,11 +745,79 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             </div>
 
-            {/* 4. Pembayaran QRIS & Upload Bukti Transfer */}
+            {/* 4. Kode Referral (Opsional) */}
+            <div className="space-y-2 bg-slate-50 dark:bg-slate-950/60 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Tag className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                  <span>4. Kode Referral (Diskon Rp 10.000)</span>
+                </label>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                  Opsional
+                </span>
+              </div>
+
+              {!appliedReferral ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={referralInput}
+                    onChange={(e) => {
+                      setReferralInput(e.target.value);
+                      if (referralFeedback.message) setReferralFeedback({ type: null, message: "" });
+                    }}
+                    placeholder='Ketik kode referral (cth: "jack efo")'
+                    className="flex-1 px-3 py-2 text-xs font-mono rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white uppercase placeholder:normal-case placeholder:text-slate-400 focus:border-cyan-400 focus:outline-none shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyReferral}
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition shrink-0 cursor-pointer shadow-sm"
+                  >
+                    Gunakan
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <div>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-300 font-mono uppercase">
+                        {appliedReferral.code}
+                      </span>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 ml-1.5 font-bold">
+                        (-{formatRupiah(appliedReferral.discountAmount)})
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveReferral}
+                    className="text-[11px] text-red-500 hover:text-red-400 font-semibold underline cursor-pointer"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              )}
+
+              {referralFeedback.message && !appliedReferral && (
+                <p
+                  className={`text-[11px] font-medium ${
+                    referralFeedback.type === "success"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-red-600 dark:text-red-400"
+                  }`}
+                >
+                  {referralFeedback.message}
+                </p>
+              )}
+            </div>
+
+            {/* 5. Pembayaran QRIS & Upload Bukti Transfer */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                  4. Pembayaran QRIS Resmi & Bukti Transfer *
+                  5. Pembayaran QRIS Resmi & Bukti Transfer *
                 </label>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                   ⚡️ QRIS All Payment
@@ -717,7 +860,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </p>
                 </div>
 
-                {/* Price Breakdown with Promo */}
+                {/* Price Breakdown with Promo & Referral */}
                 <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 space-y-1.5 text-xs">
                   {promoDiscount.isApplied && (
                     <>
@@ -734,6 +877,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         </span>
                       </div>
                     </>
+                  )}
+                  {appliedReferral && (
+                    <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold">
+                      <span>🎟️ Kode Referral ({appliedReferral.code}):</span>
+                      <span className="font-mono">
+                        -{formatRupiah(appliedReferral.discountAmount)}
+                      </span>
+                    </div>
                   )}
                   <div className="flex justify-between items-center pt-1 border-t border-slate-200 dark:border-slate-800">
                     <span className="text-slate-800 dark:text-slate-200 font-bold">

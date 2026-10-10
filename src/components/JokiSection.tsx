@@ -516,32 +516,35 @@ export const JokiSection: React.FC<JokiSectionProps> = ({ onOpenCheckout }) => {
                 </strong>{" "}
                 Paket All-In (150k →{" "}
                 <span className="font-bold text-amber-600 dark:text-amber-400">
-                  Rp 135.000 Diskon 10% Promo
+                  Rp 135.000 Diskon 10%
                 </span>
-                ) sudah mencakup garansi tembus Divisi 1{" "}
-                <span className="underline decoration-amber-400">
-                  sekaligus
-                </span>{" "}
-                sapu bersih seluruh koin hadiah event fase!
+                ) dan Paket Event Weekend (70k →{" "}
+                <span className="font-bold text-cyan-600 dark:text-cyan-400">
+                  Rp 63.000 Diskon 10%
+                </span>
+                ) untuk 3 klien pertama!
               </p>
             </div>
 
-            {/* Pricing Cards Grid (3 Cards with visual hierarchy) */}
-            <div className="grid md:grid-cols-3 gap-6 sm:gap-8 items-stretch pt-4">
+            {/* Pricing Cards Grid (4 Cards Responsive) */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 items-stretch pt-4">
               {PACKAGES_DATA.map((pkg) => {
-                const isAllIn = Boolean(pkg.isPopular || pkg.id === 'sultan-phase-clear');
+                const isAllIn = pkg.id === 'sultan-phase-clear';
+                const isTenPercent = pkg.id === 'sultan-phase-clear' || pkg.id === 'event-weekend';
                 const isDecoy = Boolean(pkg.isDecoy);
-                const pkgDiscount = calculateDiscount(pkg.price, isAllIn, promoStatus.isActive);
+                const pkgDiscount = calculateDiscount(pkg.price, isTenPercent, promoStatus.isActive);
 
                 return (
                   <div
                     key={pkg.id}
                     className={`relative rounded-3xl transition-all duration-300 flex flex-col justify-between ${
                       isAllIn
-                        ? "bg-gradient-to-b from-amber-50 via-white to-orange-50 dark:from-[#192233] dark:via-[#0f1622] dark:to-[#0a0f18] border-2 border-amber-500 dark:border-amber-400 shadow-glow-gold md:-translate-y-3 p-7 sm:p-8 z-10"
+                        ? "bg-gradient-to-b from-amber-50 via-white to-orange-50 dark:from-[#192233] dark:via-[#0f1622] dark:to-[#0a0f18] border-2 border-amber-500 dark:border-amber-400 shadow-glow-gold lg:-translate-y-2 p-6 sm:p-7 z-10"
                         : isDecoy
                           ? "bg-white dark:bg-slate-900/70 border border-purple-300 dark:border-purple-500/20 hover:border-purple-500 p-6 sm:p-7 shadow-sm"
-                          : "bg-white dark:bg-slate-900/70 border border-blue-300 dark:border-blue-500/20 hover:border-blue-500 p-6 sm:p-7 shadow-sm"
+                          : pkg.id === "event-weekend"
+                            ? "bg-white dark:bg-slate-900/70 border border-cyan-300 dark:border-cyan-500/30 hover:border-cyan-500 p-6 sm:p-7 shadow-sm"
+                            : "bg-white dark:bg-slate-900/70 border border-blue-300 dark:border-blue-500/20 hover:border-blue-500 p-6 sm:p-7 shadow-sm"
                     }`}
                   >
                     {/* Top Floating Badge for All-In */}

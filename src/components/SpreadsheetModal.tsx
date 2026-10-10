@@ -21,6 +21,9 @@ import {
   Bot,
   Settings,
   AlertCircle,
+  Database,
+  Flame,
+  Sparkles,
 } from 'lucide-react';
 import {
   SpreadsheetOrderRecord,
@@ -33,6 +36,15 @@ import {
   testGoogleSheetWebhook,
   testTelegramNotification,
 } from '../utils/spreadsheet';
+import {
+  getActiveFirebaseConfig,
+  saveFirebaseConfig,
+  testFirebaseConnection,
+  subscribeToCloudOrders,
+  updateOrderStatusCloud,
+  FirebaseConfig,
+  isFirebaseConfigured,
+} from '../services/firebase';
 import { formatRupiah } from '../utils/pricing';
 import { APP_CONFIG } from '../config/constants';
 
@@ -61,13 +73,59 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   const [telegramTestResult, setTelegramTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [savedSettingsNotice, setSavedSettingsNotice] = useState(false);
 
+  // Firebase Real-time Cloud Settings
+  const [firebaseApiKeyInput, setFirebaseApiKeyInput] = useState('');
+  const [firebaseProjectIdInput, setFirebaseProjectIdInput] = useState('');
+  const [firebaseAuthDomainInput, setFirebaseAuthDomainInput] = useState('');
+  const [firebaseSnippetInput, setFirebaseSnippetInput] = useState('');
+  const [isTestingFirebase, setIsTestingFirebase] = useState(false);
+  const [firebaseTestResult, setFirebaseTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isCloudSyncActive, setIsCloudSyncActive] = useState(false);
+
+  const handleParseFirebaseSnippet = (snippet: string) => {
+    setFirebaseSnippetInput(snippet);
+    if (!snippet) return;
+    try {
+      const apiKeyMatch = snippet.match(/apiKey:\s*["']([^"']+)["']/);
+      const projectIdMatch = snippet.match(/projectId:\s*["']([^"']+)["']/);
+      const authDomainMatch = snippet.match(/authDomain:\s*["']([^"']+)["']/);
+
+      if (apiKeyMatch) setFirebaseApiKeyInput(apiKeyMatch[1]);
+      if (projectIdMatch) setFirebaseProjectIdInput(projectIdMatch[1]);
+      if (authDomainMatch) setFirebaseAuthDomainInput(authDomainMatch[1]);
+    } catch {}
+  };
+
   const loadRecords = () => {
     setRecords(getSpreadsheetRecords());
     setWebhookUrlInput(getActiveGoogleSheetWebhookUrl());
     const tel = getActiveTelegramConfig();
     setTelegramTokenInput(tel.botToken);
     setTelegramChatIdInput(tel.chatId);
+
+    const fb = getActiveFirebaseConfig();
+    if (fb && fb.apiKey && fb.projectId) {
+      setFirebaseApiKeyInput(fb.apiKey || '');
+      setFirebaseProjectIdInput(fb.projectId || '');
+      setFirebaseAuthDomainInput(fb.authDomain || '');
+      setIsCloudSyncActive(true);
+    } else {
+      setIsCloudSyncActive(false);
+    }
   };
+
+  useEffect(() => {
+    // Realtime Listener untuk pesanan baru di Firebase Cloud
+    const unsubCloudOrders = subscribeToCloudOrders((cloudOrders) => {
+      if (Array.isArray(cloudOrders) && cloudOrders.length > 0) {
+        setRecords(cloudOrders);
+        localStorage.setItem('benbalfas_spreadsheet_records', JSON.stringify(cloudOrders));
+      }
+    });
+    return () => {
+      if (unsubCloudOrders) unsubCloudOrders();
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -101,8 +159,35 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
     localStorage.setItem('benbalfas_google_sheet_webhook_url', webhookUrlInput.trim());
     localStorage.setItem('benbalfas_telegram_bot_token', telegramTokenInput.trim());
     localStorage.setItem('benbalfas_telegram_chat_id', telegramChatIdInput.trim());
+
+    if (firebaseApiKeyInput.trim() && firebaseProjectIdInput.trim()) {
+      saveFirebaseConfig({
+        apiKey: firebaseApiKeyInput.trim(),
+        projectId: firebaseProjectIdInput.trim(),
+        authDomain: firebaseAuthDomainInput.trim() || `${firebaseProjectIdInput.trim()}.firebaseapp.com`,
+      });
+      setIsCloudSyncActive(true);
+    }
+
     setSavedSettingsNotice(true);
     setTimeout(() => setSavedSettingsNotice(false), 3000);
+  };
+
+  const handleTestFirebase = async () => {
+    setIsTestingFirebase(true);
+    setFirebaseTestResult(null);
+    const configToTest: FirebaseConfig = {
+      apiKey: firebaseApiKeyInput.trim(),
+      projectId: firebaseProjectIdInput.trim(),
+      authDomain: firebaseAuthDomainInput.trim() || `${firebaseProjectIdInput.trim()}.firebaseapp.com`,
+    };
+    const res = await testFirebaseConnection(configToTest);
+    setIsTestingFirebase(false);
+    setFirebaseTestResult(res);
+    if (res.success) {
+      saveFirebaseConfig(configToTest);
+      setIsCloudSyncActive(true);
+    }
   };
 
   const handleTestSheet = async () => {
@@ -122,10 +207,10 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   };
 
   const handleToggleStatus = (orderId: string) => {
+    let nextStatus: 'Sedang Proses' | 'Selesai' = 'Selesai';
     const updated = records.map((r) => {
       if (r.orderId === orderId) {
-        const nextStatus: 'Sedang Proses' | 'Selesai' =
-          r.status === 'Sedang Proses' ? 'Selesai' : 'Sedang Proses';
+        nextStatus = r.status === 'Sedang Proses' ? 'Selesai' : 'Sedang Proses';
         return { ...r, status: nextStatus };
       }
       return r;
@@ -133,6 +218,9 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
 
     setRecords(updated);
     localStorage.setItem('benbalfas_spreadsheet_records', JSON.stringify(updated));
+
+    // Sinkronisasikan status pesanan ke Firebase Cloud
+    updateOrderStatusCloud(orderId, nextStatus).catch(() => {});
 
     // Perbarui juga data joki terakhir jika ada
     try {
@@ -187,11 +275,21 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400 uppercase font-bold tracking-wider">
                 Database & Sinkronisasi Drive Aset
               </span>
+              {isCloudSyncActive ? (
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1 font-mono">
+                  <Database className="w-3 h-3 text-emerald-500" />
+                  <span>Cloud Real-time: ON</span>
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[10px] font-bold border border-amber-500/30 flex items-center gap-1 font-mono">
+                  <span>Database: Lokal Browser</span>
+                </span>
+              )}
             </div>
             <h3 className="font-display font-black text-2xl sm:text-3xl text-slate-900 dark:text-white mt-1 flex items-center gap-2">
               <FileSpreadsheet className="w-7 h-7 text-emerald-500" />
@@ -237,7 +335,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
               <div className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-cyan-500" />
                 <span className="font-bold text-sm text-slate-900 dark:text-white">
-                  Pusat Integrasi Real-Time: Google Sheets & Telegram Bot
+                  Pusat Integrasi Real-Time: Firebase Cloud, Google Sheets & Telegram Bot
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -254,6 +352,111 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
                   Simpan Semua Pengaturan
                 </button>
               </div>
+            </div>
+
+            {/* Kartu Utama: FIREBASE REAL-TIME CLOUD DATABASE (100% GRATIS) */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-cyan-500/10 border border-amber-500/30 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
+                  <Flame className="w-5 h-5 text-amber-500" />
+                  <span className="text-sm">🔥 Firebase Cloud Real-Time Database (100% Gratis Selamanya)</span>
+                </div>
+                {isCloudSyncActive ? (
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Terhubung ke Firebase (Real-time Aktif di Semua Device!)</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[11px] font-bold border border-amber-500/30">
+                    Belum Terhubung (Data Masih Lokal)
+                  </span>
+                )}
+              </div>
+
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                Dengan menghubungkan Firebase (Google Cloud), setiap kali ada pelanggan yang checkout di HP mereka, 
+                <strong> kuota promo & etalase joki terakhir langsung ter-update seketika di semua layar pengunjung lain di seluruh dunia!</strong>
+              </p>
+
+              <div className="space-y-2 pt-1">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Cara Cepat: Tempel Kode Config Firebase dari Console (Auto-Deteksi):
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={firebaseSnippetInput}
+                    onChange={(e) => handleParseFirebaseSnippet(e.target.value)}
+                    placeholder='Tempel kode dari Firebase Console di sini: const firebaseConfig = { apiKey: "AIza...", projectId: "benbalfas..." };'
+                    className="w-full p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 font-mono text-[11px] text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block mb-0.5">
+                      Firebase API Key:
+                    </label>
+                    <input
+                      type="text"
+                      value={firebaseApiKeyInput}
+                      onChange={(e) => setFirebaseApiKeyInput(e.target.value)}
+                      placeholder="AIzaSy..."
+                      className="w-full p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block mb-0.5">
+                      Firebase Project ID:
+                    </label>
+                    <input
+                      type="text"
+                      value={firebaseProjectIdInput}
+                      onChange={(e) => setFirebaseProjectIdInput(e.target.value)}
+                      placeholder="benbalfas-efootball"
+                      className="w-full p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTestFirebase}
+                    disabled={isTestingFirebase || !firebaseApiKeyInput || !firebaseProjectIdInput}
+                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                  >
+                    <Flame className="w-3.5 h-3.5" />
+                    <span>{isTestingFirebase ? 'Menguji Koneksi...' : '🧪 Tes Koneksi Firebase'}</span>
+                  </button>
+                  <a
+                    href="https://console.firebase.google.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-600 dark:text-cyan-400 hover:underline text-[11px] inline-flex items-center gap-1"
+                  >
+                    <span>Buka Firebase Console</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <span className="text-[10px] text-slate-500 font-mono">
+                  Cloud Firestore Free Tier (50k Reads / 20k Writes per hari)
+                </span>
+              </div>
+
+              {firebaseTestResult && (
+                <div
+                  className={`p-2.5 rounded-lg text-[11px] font-medium border ${
+                    firebaseTestResult.success
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  {firebaseTestResult.message}
+                </div>
+              )}
             </div>
 
             {/* Grid 2 Kolom: Google Sheet Webhook & Telegram Bot */}

@@ -49,6 +49,17 @@ export const APP_CONFIG = {
   googleSheetWebhookUrl:
     "https://script.google.com/macros/s/AKfycbwgaLTxPmH1W_fzdmZsm8F3o8QL20GoECyzXB8bsktqcqZ9SZhlEyOjAusbepqAwKzEQg/exec",
 
+  // Konfigurasi Database Cloud Real-time (Firebase Cloud Firestore - 100% Gratis)
+  // Bisa diisi di sini atau langsung lewat Panel Owner di website (Mode Owner > Integrasi Cloud & Bot)
+  firebase: {
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: "",
+  },
+
   // Rekening Pembayaran Resmi (Saat ini BCA & Mandiri dinonaktifkan sementara, hanya QRIS yang aktif)
   paymentAccounts: {
     bca: {

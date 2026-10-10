@@ -216,6 +216,12 @@ export function getPromoStatus(): PromoStatus {
   };
 }
 
+import {
+  claimPromoSlotCloud,
+  claimReferralSlotCloud,
+  resetPromoSlotsCloud,
+} from "../services/firebase";
+
 export function claimPromoSlot(): number {
   if (typeof window === 'undefined') return 0;
   const current = getPromoSlotsClaimed();
@@ -225,6 +231,8 @@ export function claimPromoSlot(): number {
     try {
       window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
     } catch {}
+    // Sinkronisasi ke Firebase Cloud
+    claimPromoSlotCloud().catch(() => {});
     return next;
   }
   return current;
@@ -236,6 +244,8 @@ export function resetPromoSlots(): void {
   try {
     window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
   } catch {}
+  // Reset di Firebase Cloud
+  resetPromoSlotsCloud().catch(() => {});
 }
 
 export interface DiscountCalculation {
@@ -376,6 +386,7 @@ export function claimReferralSlot(): number {
     try {
       window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
     } catch {}
+    claimReferralSlotCloud().catch(() => {});
     return next;
   }
   return current;
@@ -387,5 +398,6 @@ export function resetReferralSlots(): void {
   try {
     window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
   } catch {}
+  resetPromoSlotsCloud().catch(() => {});
 }
 

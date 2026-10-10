@@ -2,6 +2,7 @@ import { RecentJoki, GamingPlatform, OrderType } from '../types';
 import { APP_CONFIG } from '../config/constants';
 import { INITIAL_RECENT_JOKIS } from '../data/mockData';
 import { formatRupiah, getPlatformLabel } from './pricing';
+import { saveRecentJokisCloud, saveOrderToCloud } from '../services/firebase';
 
 export interface SpreadsheetOrderRecord {
   timestamp: string;          // Tanggal & Jam Pemesanan
@@ -250,6 +251,9 @@ export const addOrderToRecentJoki = (record: SpreadsheetOrderRecord): void => {
     window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', {
       detail: updatedJokis,
     }));
+
+    // Push ke Firebase Cloud (Otomatis muncul di HP/device semua pengunjung)
+    saveRecentJokisCloud(updatedJokis).catch(() => {});
   } catch (err) {
     console.error('Gagal memasukkan order ke Data Joki Terakhir:', err);
   }
@@ -258,8 +262,9 @@ export const addOrderToRecentJoki = (record: SpreadsheetOrderRecord): void => {
 /**
  * Sinkronisasi lengkap saat tombol "Konfirmasi Pesanan" ditekan:
  * 1. Simpan ke Database Spreadsheet Lokal
- * 2. Integrasikan ke "Data Joki Terakhir" (status: Sedang Proses)
- * 3. Kirim ke Webhook Google Apps Script (jika ada)
+ * 2. Integrasikan ke "Data Joki Terakhir" (Local & Cloud)
+ * 3. Simpan ke Firebase Cloud Orders (Real-time di semua device)
+ * 4. Kirim ke Webhook Google Apps Script (jika ada)
  */
 export const syncOrderToSpreadsheetAndRecentJoki = async (
   record: SpreadsheetOrderRecord
@@ -270,7 +275,10 @@ export const syncOrderToSpreadsheetAndRecentJoki = async (
   // 2. Integrasikan ke Data Joki Terakhir
   addOrderToRecentJoki(record);
 
-  // 3. Kirim ke Google Apps Script (Background)
+  // 3. Simpan ke Firebase Cloud Database (Real-time)
+  saveOrderToCloud(record).catch(() => {});
+
+  // 4. Kirim ke Google Apps Script (Background)
   sendToGoogleSheetWebhook(record).catch(() => {});
 };
 

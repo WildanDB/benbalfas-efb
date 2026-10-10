@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import { RecentJoki, GamingPlatform } from "../types";
 import { INITIAL_RECENT_JOKIS } from "../data/mockData";
+import {
+  subscribeToCloudRecentJokis,
+  saveRecentJokisCloud,
+} from "../services/firebase";
 
 interface HeroSectionProps {
   onNavigateToJoki: () => void;
@@ -58,8 +62,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     return INITIAL_RECENT_JOKIS;
   });
 
-  // Real-time listener: Otomatis perbarui Data Joki Terakhir ketika pesanan baru masuk dari checkout atau update owner
+  // Real-time listener: Otomatis perbarui Data Joki Terakhir (Cloud Firebase & Local Storage)
   useEffect(() => {
+    // 1. Firebase Cloud Realtime Listener (Update di semua device seketika)
+    const unsubCloud = subscribeToCloudRecentJokis((cloudJokis) => {
+      if (Array.isArray(cloudJokis) && cloudJokis.length > 0) {
+        setRecentJokis(cloudJokis);
+        localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(cloudJokis));
+      }
+    });
+
+    // 2. Local Custom Event & Storage Listener
     const handleRecentJokisUpdated = (event: any) => {
       if (event.detail && Array.isArray(event.detail)) {
         setRecentJokis(event.detail);
@@ -78,6 +91,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     window.addEventListener("benbalfas_recent_jokis_updated", handleRecentJokisUpdated);
     window.addEventListener("storage", handleRecentJokisUpdated);
     return () => {
+      if (unsubCloud) unsubCloud();
       window.removeEventListener("benbalfas_recent_jokis_updated", handleRecentJokisUpdated);
       window.removeEventListener("storage", handleRecentJokisUpdated);
     };
@@ -182,6 +196,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       setRecentJokis(updated);
       localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
       window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: updated }));
+      // Push ke Firebase Cloud Realtime
+      saveRecentJokisCloud(updated).catch(() => {});
 
       // Sinkronisasikan juga ke Spreadsheet records jika ada ID pesanan yang cocok
       try {
@@ -230,6 +246,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       setRecentJokis(updated);
       localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
       window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: updated }));
+      // Push ke Firebase Cloud Realtime
+      saveRecentJokisCloud(updated).catch(() => {});
       setIsEditModalOpen(false);
       setActiveJokiIndex(0);
     }
@@ -242,6 +260,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       setRecentJokis(nextList);
       localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(nextList));
       window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: nextList }));
+      // Push ke Firebase Cloud Realtime
+      saveRecentJokisCloud(nextList).catch(() => {});
       setActiveJokiIndex(0);
     }
   };

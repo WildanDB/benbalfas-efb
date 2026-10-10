@@ -12,6 +12,7 @@ import { OrderType, GamingPlatform } from './types';
 import { Calculator, Sparkles, MessageCircle, Flame, ShieldAlert, LogOut, RotateCcw, FileSpreadsheet } from 'lucide-react';
 import { APP_CONFIG } from './config/constants';
 import { getPromoStatus, resetPromoSlots, getReferralStatus, resetReferralSlots } from './utils/pricing';
+import { subscribeToCloudPromo } from './services/firebase';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'joki' | 'trophy'>('home');
@@ -29,6 +30,19 @@ export function App() {
   const [referralStatus, setReferralStatus] = useState(getReferralStatus);
 
   useEffect(() => {
+    // 1. Firebase Real-time Cloud Listener (Klaim promo di HP mana pun otomatis update di semua device)
+    const unsubCloudPromo = subscribeToCloudPromo((cloudData) => {
+      if (typeof cloudData.claimedPromoSlots === 'number') {
+        localStorage.setItem('benbalfas_promo_claimed_count', String(cloudData.claimedPromoSlots));
+      }
+      if (typeof cloudData.claimedReferralSlots === 'number') {
+        localStorage.setItem('benbalfas_referral_claimed_count', String(cloudData.claimedReferralSlots));
+      }
+      setPromoStatus(getPromoStatus());
+      setReferralStatus(getReferralStatus());
+    });
+
+    // 2. Local Event Listener
     const handlePromoSync = () => {
       setPromoStatus(getPromoStatus());
       setReferralStatus(getReferralStatus());
@@ -36,6 +50,7 @@ export function App() {
     window.addEventListener('benbalfas_promo_updated', handlePromoSync);
     window.addEventListener('storage', handlePromoSync);
     return () => {
+      if (unsubCloudPromo) unsubCloudPromo();
       window.removeEventListener('benbalfas_promo_updated', handlePromoSync);
       window.removeEventListener('storage', handlePromoSync);
     };

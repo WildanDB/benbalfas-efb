@@ -1,9 +1,10 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { initializeApp, getApps, getApp, FirebaseApp, deleteApp } from "firebase/app";
 import {
   getFirestore,
   doc,
   setDoc,
   getDoc,
+  getDocFromServer,
   onSnapshot,
   collection,
   query,
@@ -66,22 +67,26 @@ export const getActiveFirebaseConfig = (): FirebaseConfig | null => {
   return null;
 };
 
+// Singleton Firebase instances
+let cachedApp: FirebaseApp | null = null;
+let cachedDb: Firestore | null = null;
+
 export const saveFirebaseConfig = (config: FirebaseConfig): void => {
   localStorage.setItem(STORAGE_KEY_FIREBASE, JSON.stringify(config));
+  cachedApp = null;
+  cachedDb = null;
 };
 
 export const clearFirebaseConfig = (): void => {
   localStorage.removeItem(STORAGE_KEY_FIREBASE);
+  cachedApp = null;
+  cachedDb = null;
 };
 
 export const isFirebaseConfigured = (): boolean => {
   const config = getActiveFirebaseConfig();
   return !!(config && config.apiKey && config.projectId);
 };
-
-// Singleton Firebase instances
-let cachedApp: FirebaseApp | null = null;
-let cachedDb: Firestore | null = null;
 
 export const getFirebaseDb = (): Firestore | null => {
   const config = getActiveFirebaseConfig();
@@ -92,8 +97,9 @@ export const getFirebaseDb = (): Firestore | null => {
   try {
     if (!cachedApp) {
       const apps = getApps();
-      if (apps.length > 0) {
-        cachedApp = getApp();
+      const defaultApp = apps.find((a) => a.name === "[DEFAULT]");
+      if (defaultApp) {
+        cachedApp = defaultApp;
       } else {
         cachedApp = initializeApp(config);
       }
@@ -110,6 +116,10 @@ export const getFirebaseDb = (): Firestore | null => {
 
 /**
  * Menguji koneksi ke Firebase Firestore
+ * Terlindungi dari hanging/loading terus menerus:
+ * 1. REST API Pre-check cepat (< 1 detik) untuk deteksi apakah Database sudah dibuat di Firebase Console
+ * 2. Timeout ketat 5 detik pada SDK real-time write/read
+ * 3. Pembersihan instance testApp otomatis
  */
 export const testFirebaseConnection = async (
   customConfig?: FirebaseConfig
@@ -122,28 +132,82 @@ export const testFirebaseConnection = async (
     };
   }
 
+  // Langkah 1: REST API Pre-check cepat (Direct Google Cloud Check)
+  // Mengetahui seketika jika database belum dibuat di Firebase Console
   try {
-    // Inisialisasi app test tersendiri agar tidak bentrok
+    const controller = new AbortController();
+    const restTimeout = setTimeout(() => controller.abort(), 3500);
+    const restUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
+      config.projectId
+    )}/databases/(default)/documents?key=${encodeURIComponent(config.apiKey)}`;
+
+    const restRes = await fetch(restUrl, { signal: controller.signal });
+    clearTimeout(restTimeout);
+
+    if (restRes.status === 404) {
+      return {
+        success: false,
+        message:
+          `⚠️ Database Firestore BELUM DIBUAT di Firebase Console!\n\n` +
+          `Project "${config.projectId}" ada, namun Anda belum mengaktifkan Firestore Database.\n\n` +
+          `Cara Mengaktifkan (Hanya 1 Menit):\n` +
+          `1. Buka console.firebase.google.com\n` +
+          `2. Pilih project "${config.projectId}"\n` +
+          `3. Di menu sebelah kiri: Build ➔ Firestore Database\n` +
+          `4. Klik tombol "Create database"\n` +
+          `5. Pilih lokasi default & centang "Start in test mode"\n` +
+          `6. Klik "Create/Enable", lalu tes kembali di sini!`,
+      };
+    }
+
+    if (restRes.status === 400) {
+      const errJson = await restRes.json().catch(() => ({}));
+      const errMsg = errJson?.error?.message || "API Key tidak valid";
+      return {
+        success: false,
+        message: `⚠️ API Key atau Project ID Firebase salah: ${errMsg}. Periksa Project Settings di Firebase Console.`,
+      };
+    }
+  } catch (err: any) {
+    // Abaikan jika network offline, lanjut ke SDK test dengan timeout
+    console.warn("REST pre-check skipped:", err);
+  }
+
+  // Langkah 2: Real-time SDK Write & Read dengan timeout ketat 5 detik
+  let testApp: FirebaseApp | null = null;
+  try {
     const testAppName = "test-app-" + Date.now();
-    const testApp = initializeApp(config, testAppName);
+    testApp = initializeApp(config, testAppName);
     const testDb = getFirestore(testApp);
 
     const pingRef = doc(testDb, "system", "connection_ping");
-    await setDoc(
-      pingRef,
-      {
-        lastPing: new Date().toISOString(),
-        testBy: "Ben Balfas Admin",
-        status: "connected",
-      },
-      { merge: true }
-    );
 
-    const snap = await getDoc(pingRef);
-    if (snap.exists()) {
+    const testWriteRead = async () => {
+      await setDoc(
+        pingRef,
+        {
+          lastPing: new Date().toISOString(),
+          testBy: "Ben Balfas Owner",
+          status: "connected",
+        },
+        { merge: true }
+      );
+      const snap = await getDocFromServer(pingRef);
+      return snap.exists();
+    };
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("FIRESTORE_TIMEOUT"));
+      }, 5000);
+    });
+
+    const isSuccess = await Promise.race([testWriteRead(), timeoutPromise]);
+
+    if (isSuccess) {
       return {
         success: true,
-        message: `Koneksi Real-time ke Project "${config.projectId}" Berhasil! Database siap digunakan di semua device.`,
+        message: `✅ Koneksi Real-time ke Project "${config.projectId}" Berhasil!\nDatabase aktif. Seluruh pesanan, pengurangan slot promo, dan data joki akan sinkron di semua device secara otomatis.`,
       };
     } else {
       return {
@@ -152,10 +216,54 @@ export const testFirebaseConnection = async (
       };
     }
   } catch (err: any) {
+    if (err?.message === "FIRESTORE_TIMEOUT") {
+      return {
+        success: false,
+        message:
+          `⚠️ Waktu Tes Koneksi Habis (Timeout 5 Detik).\n\n` +
+          `Firestore tidak merespons. Kemungkinan besar:\n` +
+          `1. Database Firestore belum dibuat (Build ➔ Firestore Database ➔ Create Database).\n` +
+          `2. Security Rules terkunci. Pastikan di tab "Rules" Firestore tertera:\n` +
+          `   allow read, write: if true;\n` +
+          `3. Koneksi internet Anda sedang tidak stabil.`,
+      };
+    }
+
+    if (
+      err?.code === "permission-denied" ||
+      String(err).includes("permission-denied") ||
+      String(err).includes("PERMISSION_DENIED")
+    ) {
+      return {
+        success: false,
+        message:
+          `⚠️ Akses Ditolak oleh Security Rules Firebase.\n\n` +
+          `Solusi:\n` +
+          `1. Buka console.firebase.google.com ➔ Firestore Database\n` +
+          `2. Klik tab "Rules"\n` +
+          `3. Ubah aturan menjadi:\n` +
+          `   rules_version = '2';\n` +
+          `   service cloud.firestore {\n` +
+          `     match /databases/{database}/documents {\n` +
+          `       match /{document=**} {\n` +
+          `         allow read, write: if true;\n` +
+          `       }\n` +
+          `     }\n` +
+          `   }\n` +
+          `4. Klik "Publish" dan tes kembali.`,
+      };
+    }
+
     return {
       success: false,
       message: "Gagal terhubung ke Firebase: " + (err.message || String(err)),
     };
+  } finally {
+    if (testApp) {
+      try {
+        await deleteApp(testApp);
+      } catch {}
+    }
   }
 };
 

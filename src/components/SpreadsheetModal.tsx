@@ -176,34 +176,58 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   const handleTestFirebase = async () => {
     setIsTestingFirebase(true);
     setFirebaseTestResult(null);
-    const configToTest: FirebaseConfig = {
-      apiKey: firebaseApiKeyInput.trim(),
-      projectId: firebaseProjectIdInput.trim(),
-      authDomain: firebaseAuthDomainInput.trim() || `${firebaseProjectIdInput.trim()}.firebaseapp.com`,
-    };
-    const res = await testFirebaseConnection(configToTest);
-    setIsTestingFirebase(false);
-    setFirebaseTestResult(res);
-    if (res.success) {
-      saveFirebaseConfig(configToTest);
-      setIsCloudSyncActive(true);
+    try {
+      const configToTest: FirebaseConfig = {
+        apiKey: firebaseApiKeyInput.trim(),
+        projectId: firebaseProjectIdInput.trim(),
+        authDomain: firebaseAuthDomainInput.trim() || `${firebaseProjectIdInput.trim()}.firebaseapp.com`,
+      };
+      const res = await testFirebaseConnection(configToTest);
+      setFirebaseTestResult(res);
+      if (res.success) {
+        saveFirebaseConfig(configToTest);
+        setIsCloudSyncActive(true);
+      }
+    } catch (err: any) {
+      setFirebaseTestResult({
+        success: false,
+        message: 'Terjadi kesalahan saat menguji koneksi: ' + (err.message || String(err)),
+      });
+    } finally {
+      setIsTestingFirebase(false);
     }
   };
 
   const handleTestSheet = async () => {
     setIsTestingSheet(true);
     setSheetTestResult(null);
-    const res = await testGoogleSheetWebhook(webhookUrlInput.trim());
-    setIsTestingSheet(false);
-    setSheetTestResult(res);
+    try {
+      const res = await testGoogleSheetWebhook(webhookUrlInput.trim());
+      setSheetTestResult(res);
+    } catch (err: any) {
+      setSheetTestResult({
+        success: false,
+        message: 'Gagal menguji spreadsheet webhook: ' + (err.message || String(err)),
+      });
+    } finally {
+      setIsTestingSheet(false);
+    }
   };
 
   const handleTestTelegram = async () => {
     setIsTestingTelegram(true);
     setTelegramTestResult(null);
-    const res = await testTelegramNotification(telegramTokenInput.trim(), telegramChatIdInput.trim());
-    setIsTestingTelegram(false);
-    setTelegramTestResult(res);
+    try {
+      const res = await testTelegramNotification(telegramTokenInput.trim(), telegramChatIdInput.trim());
+      setTelegramTestResult(res);
+    } catch (err: any) {
+      setTelegramTestResult({
+        success: false,
+        message: 'Gagal menguji Telegram: ' + (err.message || String(err)),
+      });
+    } finally {
+      setIsTestingTelegram(false);
+    }
   };
 
   const handleToggleStatus = (orderId: string) => {
@@ -448,7 +472,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
 
               {firebaseTestResult && (
                 <div
-                  className={`p-2.5 rounded-lg text-[11px] font-medium border ${
+                  className={`p-2.5 rounded-lg text-[11px] font-medium border whitespace-pre-line leading-relaxed ${
                     firebaseTestResult.success
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
                       : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'

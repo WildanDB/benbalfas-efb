@@ -194,8 +194,8 @@ export const testTelegramNotification = async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
-        text: `✅ *TES KONEKSI TELEGRAM BERHASIL - BEN BALFAS*\n\nSelamat! Notifikasi bot Telegram resmi Anda sudah aktif dan terhubung dengan website.\nSetiap ada pesanan joki baru masuk, detail akun klien akan otomatis terkirim ke chat ini secara instan! ⚽️⚡️`,
-        parse_mode: 'Markdown',
+        text: `✅ <b>TES KONEKSI TELEGRAM BERHASIL - BEN BALFAS</b>\n\nSelamat! Notifikasi bot Telegram resmi Anda sudah aktif dan terhubung dengan website.\nSetiap ada pesanan joki baru masuk, detail akun klien akan otomatis terkirim ke chat ini secara instan! ⚽️⚡️`,
+        parse_mode: 'HTML',
       }),
     });
     const data = await res.json();
@@ -206,6 +206,149 @@ export const testTelegramNotification = async (
     }
   } catch (err: any) {
     return { success: false, message: 'Gagal menghubungi Telegram API: ' + (err.message || 'Error jaringan') };
+  }
+};
+
+/**
+ * Mengirim notifikasi detail pesanan baru ke Bot Telegram Admin
+ * Menggunakan HTML mode dengan escape lengkap dan fallback otomatis ke plain text
+ * sehingga dijamin 100% terkirim tanpa gagal akibat karakter khusus (seperti underscore '_' pada username, password, atau nama file bukti transfer)
+ */
+export const sendTelegramOrderNotification = async (
+  record: SpreadsheetOrderRecord
+): Promise<{ success: boolean; message?: string }> => {
+  const telegramConfig = getActiveTelegramConfig();
+  if (!telegramConfig.botToken || !telegramConfig.chatId) {
+    return {
+      success: false,
+      message: 'Bot Token atau Chat ID Telegram belum dikonfigurasi.',
+    };
+  }
+
+  const escapeHtml = (str: any): string => {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  };
+
+  const cleanWa = record.whatsappNumber.replace(/\D/g, '');
+  const waLink = cleanWa.startsWith('0') ? '62' + cleanWa.slice(1) : cleanWa;
+
+  const promoLine =
+    record.discountPercent > 0
+      ? `🎁 <b>Promo:</b> Diskon ${record.discountPercent}%\n`
+      : '';
+
+  const referralLine =
+    record.referralCode
+      ? `🎟️ <b>Kode Referral:</b> <code>${escapeHtml(record.referralCode)}</code> (-${formatRupiah(record.referralDiscount || 0)})\n`
+      : '';
+
+  const proofLine =
+    record.transferProofName
+      ? `🧾 <b>Bukti Transfer:</b> <code>${escapeHtml(record.transferProofName)}</code> (Terlampir)\n`
+      : '';
+
+  const noteLine =
+    record.transferProofNote
+      ? `📝 <b>Catatan Klien:</b> ${escapeHtml(record.transferProofNote)}\n`
+      : '';
+
+  // Format 1: HTML Elegan & Terstruktur
+  const htmlMessage =
+    `🚨 <b>PESANAN JOKI MASUK - BEN BALFAS</b> 🚨\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `🆔 <b>ID Pesanan:</b> <code>${escapeHtml(record.orderId)}</code>\n` +
+    `🎮 <b>Platform Game:</b> ${escapeHtml(record.platformLabel)}\n` +
+    `📦 <b>Tipe Layanan:</b> ${escapeHtml(record.orderType === 'points' ? 'Hitung via Poin' : 'Paket Instan')}\n` +
+    `⚡️ <b>Layanan / Paket:</b> <b>${escapeHtml(record.orderDescription)}</b>\n` +
+    promoLine +
+    referralLine +
+    `💰 <b>Total Tagihan:</b> <b>${formatRupiah(record.finalPrice)}</b>\n` +
+    `⏱️ <b>Estimasi SLA:</b> ${escapeHtml(record.duration)}\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `👤 <b>Nama Klien:</b> ${escapeHtml(record.clientName)}\n` +
+    `📱 <b>WhatsApp:</b> <a href="https://wa.me/${waLink}">${escapeHtml(record.whatsappNumber)}</a>\n` +
+    `🔑 <b>Akun Game / Email:</b> <code>${escapeHtml(record.accountUsername)}</code>\n` +
+    `🔒 <b>Password:</b> <code>${escapeHtml(record.accountPassword)}</code>\n` +
+    `💳 <b>Metode Bayar:</b> ${escapeHtml(record.paymentMethod || 'QRIS Instant')}\n` +
+    proofLine +
+    noteLine +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `⚡️ <b>Status Joki:</b> ${escapeHtml(record.status)}\n` +
+    `⏳ Segera hubungi nomor WhatsApp klien untuk konfirmasi & OTP!`;
+
+  // Format 2: Plain Text Fallback (Garansi Anti-Gagal terhadap karakter apa pun)
+  const plainTextMessage =
+    `🚨 PESANAN JOKI MASUK - BEN BALFAS 🚨\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `ID Pesanan: ${record.orderId}\n` +
+    `Platform: ${record.platformLabel}\n` +
+    `Layanan: ${record.orderDescription}\n` +
+    (record.discountPercent > 0 ? `Promo: Diskon ${record.discountPercent}%\n` : '') +
+    (record.referralCode ? `Referral: ${record.referralCode} (-${formatRupiah(record.referralDiscount || 0)})\n` : '') +
+    `Total Bayar: ${formatRupiah(record.finalPrice)}\n` +
+    `Estimasi SLA: ${record.duration}\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `Nama: ${record.clientName}\n` +
+    `WhatsApp: ${record.whatsappNumber} (https://wa.me/${waLink})\n` +
+    `Akun Game: ${record.accountUsername}\n` +
+    `Password: ${record.accountPassword}\n` +
+    `Metode: ${record.paymentMethod || 'QRIS Instant'}\n` +
+    (record.transferProofName ? `Bukti: ${record.transferProofName}\n` : '') +
+    (record.transferProofNote ? `Catatan: ${record.transferProofNote}\n` : '') +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `Status: ${record.status}`;
+
+  try {
+    // Percobaan 1: Kirim mode HTML
+    const res = await fetch(`https://api.telegram.org/bot${telegramConfig.botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: telegramConfig.chatId,
+        text: htmlMessage,
+        parse_mode: 'HTML',
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (data.ok) {
+      console.log('Notifikasi Telegram berhasil dikirim via HTML mode.');
+      return { success: true, message: 'Notifikasi terkirim' };
+    }
+
+    console.warn('Telegram HTML parse warning, mencoba fallback ke Plain Text:', data);
+
+    // Percobaan 2: Fallback ke Plain Text jika ada karakter yang ditolak parser HTML
+    const fallbackRes = await fetch(`https://api.telegram.org/bot${telegramConfig.botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: telegramConfig.chatId,
+        text: plainTextMessage,
+      }),
+    });
+
+    const fallbackData = await fallbackRes.json().catch(() => ({}));
+    if (fallbackData.ok) {
+      console.log('Notifikasi Telegram berhasil dikirim via Plain Text fallback.');
+      return { success: true, message: 'Notifikasi terkirim (Fallback Plain Text)' };
+    }
+
+    console.error('Telegram dispatch fallback gagal:', fallbackData);
+    return {
+      success: false,
+      message: fallbackData.description || 'Gagal mengirim notifikasi ke bot Telegram',
+    };
+  } catch (err: any) {
+    console.error('Network error saat kirim notifikasi Telegram:', err);
+    return {
+      success: false,
+      message: err.message || 'Error jaringan ke Telegram API',
+    };
   }
 };
 
@@ -265,6 +408,7 @@ export const addOrderToRecentJoki = (record: SpreadsheetOrderRecord): void => {
  * 2. Integrasikan ke "Data Joki Terakhir" (Local & Cloud)
  * 3. Simpan ke Firebase Cloud Orders (Real-time di semua device)
  * 4. Kirim ke Webhook Google Apps Script (jika ada)
+ * 5. Kirim notifikasi instan ke Bot Telegram Admin (Real-time)
  */
 export const syncOrderToSpreadsheetAndRecentJoki = async (
   record: SpreadsheetOrderRecord
@@ -280,6 +424,11 @@ export const syncOrderToSpreadsheetAndRecentJoki = async (
 
   // 4. Kirim ke Google Apps Script (Background)
   sendToGoogleSheetWebhook(record).catch(() => {});
+
+  // 5. Kirim notifikasi instan ke Bot Telegram Admin
+  sendTelegramOrderNotification(record).catch((err) => {
+    console.warn('Telegram background dispatch warning:', err);
+  });
 };
 
 /**

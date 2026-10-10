@@ -35,7 +35,6 @@ import { APP_CONFIG } from "../config/constants";
 import {
   syncOrderToSpreadsheetAndRecentJoki,
   SpreadsheetOrderRecord,
-  getActiveTelegramConfig,
 } from "../utils/spreadsheet";
 
 interface CheckoutModalProps {
@@ -276,61 +275,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       hasTransferProof: !!transferProofPreview,
     };
 
-    // Sinkronisasi otomatis ke Database Spreadsheet & Data Joki Terakhir (Sedang Proses)
+    // Sinkronisasi otomatis ke Database Spreadsheet, Data Joki Terakhir, Firebase Cloud, & Bot Telegram
     try {
       await syncOrderToSpreadsheetAndRecentJoki(spreadsheetRecord);
     } catch (err) {
-      console.error("Gagal sinkronisasi spreadsheet/joki:", err);
-    }
-
-    const telegramMessage =
-      `🚨 *PESANAN JOKI MASUK - BENBALFAS* 🚨\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `🎮 *Platform Game:* ${getPlatformLabel(platform)}\n` +
-      `📦 *Tipe:* ${orderType === "points" ? "Hitung via Poin" : "Paket Instan"}\n` +
-      `⚡️ *Layanan:* ${orderDescription}\n` +
-      (promoDiscount.isApplied
-        ? `🎁 *Promo:* Diskon ${promoDiscount.discountPercent}% (Hemat ${formatRupiah(promoDiscount.discountAmount)})\n`
-        : "") +
-      (appliedReferral
-        ? `🎟️ *Kode Referral:* ${appliedReferral.code} (-${formatRupiah(referralDiscountAmount)})\n`
-        : "") +
-      `💰 *Total Tagihan:* ${formatRupiah(finalPrice)}\n` +
-      `⏱️ *Estimasi SLA:* ${finalSla}\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `👤 *Nama Klien:* ${clientName}\n` +
-      `📱 *WhatsApp:* ${whatsappNumber}\n` +
-      `🔑 *${accountLabels.telegramLabel}:* \`${accountUsername}\`\n` +
-      `🔒 *Password:* \`${accountPassword}\`\n` +
-      `💳 *Metode Pembayaran:* QRIS Instant\n` +
-      (transferProofName
-        ? `🧾 *Bukti Transfer:* ${transferProofName} (Terlampir)\n`
-        : "") +
-      (transferProofNote
-        ? `📝 *Catatan Tambahan:* ${transferProofNote}\n`
-        : "") +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `⚡️ *Status Joki:* Sedang Proses (Tercatat di Spreadsheet & Web)\n` +
-      `⏳ Menunggu Konfirmasi Handover OTP WhatsApp Admin`;
-
-    const telegramConfig = getActiveTelegramConfig();
-    if (telegramConfig.botToken && telegramConfig.chatId) {
-      try {
-        await fetch(
-          `https://api.telegram.org/bot${telegramConfig.botToken}/sendMessage`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: telegramConfig.chatId,
-              text: telegramMessage,
-              parse_mode: "Markdown",
-            }),
-          },
-        );
-      } catch (err) {
-        console.error("Telegram dispatch fallback:", err);
-      }
+      console.error("Gagal sinkronisasi spreadsheet/joki/telegram:", err);
     }
 
     // Claim promo slot if promo was applied

@@ -86,21 +86,6 @@ export function App() {
     window.history.replaceState({}, '', url.pathname);
   };
 
-  const handleOpenOwnerPortal = () => {
-    if (isAdmin) {
-      setIsSpreadsheetOpen(true);
-      return;
-    }
-    const entered = prompt('Masukkan Password Owner untuk membuka Database Cloud:');
-    if (entered === 'benbalfas123') {
-      localStorage.setItem('benbalfas_is_admin', 'true');
-      setIsAdmin(true);
-      setIsSpreadsheetOpen(true);
-    } else if (entered !== null) {
-      alert('Password salah. Akses khusus Owner Ben Balfas.');
-    }
-  };
-
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -321,7 +306,6 @@ export function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         onOpenCheckout={() => handleOpenCheckout()}
-        onOpenOwnerPanel={handleOpenOwnerPortal}
       />
 
       {/* Checkout Modal */}

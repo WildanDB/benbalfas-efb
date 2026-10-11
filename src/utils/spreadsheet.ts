@@ -382,12 +382,14 @@ export const addOrderToRecentJoki = (record: SpreadsheetOrderRecord): void => {
       status: 'Sedang Proses',
       duration: record.duration,
       date: 'Hari Ini',
+      completedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       winStreak: 0,
       platform: record.platform,
     };
 
-    // Sisipkan di posisi terdepan (terbaru)
-    const updatedJokis = [newRecentJoki, ...existing];
+    // Sisipkan di posisi terdepan (terbaru), dibatasi maksimal 10 joki terakhir
+    const updatedJokis = [newRecentJoki, ...existing].slice(0, 10);
     localStorage.setItem(STORAGE_KEY_RECENT_JOKIS, JSON.stringify(updatedJokis));
 
     // Dispatch event agar HeroSection me-refresh data tanpa reload halaman

@@ -71,6 +71,8 @@ export interface RecentJoki {
   status: 'Selesai' | 'Sedang Proses';
   duration: string;
   date: string;
+  completedAt?: string; // ISO string untuk perhitungan tanggal relatif dinamis
+  createdAt?: string;
   winStreak?: number;
   platform?: GamingPlatform;
   recordType?: 'points' | 'wdl'; // 'points' (default) atau 'wdl' (Weekend Event)

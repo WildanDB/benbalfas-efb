@@ -10,6 +10,8 @@ import {
   Edit2,
   Trash2,
   X,
+  Table,
+  LayoutGrid,
 } from "lucide-react";
 import { RecentJoki, GamingPlatform } from "../types";
 import { INITIAL_RECENT_JOKIS } from "../data/mockData";
@@ -18,6 +20,7 @@ import {
   saveRecentJokisCloud,
   updateOrderStatusCloud,
 } from "../services/firebase";
+import { formatRelativeJokiDate, ensureJokiCompletedAt } from "../utils/pricing";
 
 interface HeroSectionProps {
   onNavigateToJoki: () => void;
@@ -37,6 +40,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 }) => {
   // Check if owner activated secret admin mode via URL (?admin=benbalfas) or localStorage
   const [isAdmin, setIsAdmin] = useState(false);
+  const [viewMode, setViewMode] = useState<"card" | "table">("card");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -48,42 +52,50 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     }
   }, []);
 
-  // Recent Joki Data State (Persisten di localStorage)
+  // Recent Joki Data State (Dibatasi Maksimal 10 Joki Terakhir)
   const [recentJokis, setRecentJokis] = useState<RecentJoki[]>(() => {
-    if (typeof window === "undefined") return INITIAL_RECENT_JOKIS;
+    if (typeof window === "undefined") {
+      return INITIAL_RECENT_JOKIS.slice(0, 10).map(ensureJokiCompletedAt);
+    }
     const saved = localStorage.getItem("benbalfas_recent_jokis");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.slice(0, 10).map(ensureJokiCompletedAt);
         }
       } catch {}
     }
-    return INITIAL_RECENT_JOKIS;
+    return INITIAL_RECENT_JOKIS.slice(0, 10).map(ensureJokiCompletedAt);
   });
 
   // Real-time listener: Otomatis perbarui Data Joki Terakhir (Cloud Firebase & Local Storage)
   useEffect(() => {
-    // 1. Firebase Cloud Realtime Listener (Update di semua device seketika)
+    // 1. Firebase Cloud Realtime Listener (Update di semua device seketika, maks 10)
     const unsubCloud = subscribeToCloudRecentJokis((cloudJokis) => {
       if (Array.isArray(cloudJokis) && cloudJokis.length > 0) {
-        setRecentJokis(cloudJokis);
-        localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(cloudJokis));
+        const sanitized = cloudJokis.slice(0, 10).map(ensureJokiCompletedAt);
+        setRecentJokis(sanitized);
+        localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(sanitized));
       }
     });
 
     // 2. Local Custom Event & Storage Listener
     const handleRecentJokisUpdated = (event: any) => {
       if (event.detail && Array.isArray(event.detail)) {
-        setRecentJokis(event.detail);
+        const sanitized = event.detail.slice(0, 10).map(ensureJokiCompletedAt);
+        setRecentJokis(sanitized);
         setActiveJokiIndex(0);
       } else {
         const saved = localStorage.getItem("benbalfas_recent_jokis");
         if (saved) {
           try {
-            setRecentJokis(JSON.parse(saved));
-            setActiveJokiIndex(0);
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const sanitized = parsed.slice(0, 10).map(ensureJokiCompletedAt);
+              setRecentJokis(sanitized);
+              setActiveJokiIndex(0);
+            }
           } catch {}
         }
       }
@@ -91,13 +103,21 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
     window.addEventListener("benbalfas_recent_jokis_updated", handleRecentJokisUpdated);
     window.addEventListener("storage", handleRecentJokisUpdated);
+
+    // Refresh perhitungan waktu relatif setiap 15 menit agar saat berganti hari jam 00:00 otomatis update
+    const timer = setInterval(() => {
+      setRecentJokis((prev) => prev.slice(0, 10).map(ensureJokiCompletedAt));
+    }, 15 * 60 * 1000);
+
     return () => {
       if (unsubCloud) unsubCloud();
       window.removeEventListener("benbalfas_recent_jokis_updated", handleRecentJokisUpdated);
       window.removeEventListener("storage", handleRecentJokisUpdated);
+      clearInterval(timer);
     };
   }, []);
 
+  const displayedJokis = recentJokis.slice(0, 10);
   const [activeJokiIndex, setActiveJokiIndex] = useState(0);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'update'>('create');
@@ -111,6 +131,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     status: "Sedang Proses" as "Selesai" | "Sedang Proses",
     duration: "4 Jam",
     date: "Hari Ini",
+    completedAt: new Date().toISOString(),
     winStreak: 6,
     platform: "steam" as GamingPlatform,
     recordType: "wdl" as "points" | "wdl",
@@ -120,11 +141,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   });
 
   const currentJoki =
-    recentJokis[activeJokiIndex] || recentJokis[0] || INITIAL_RECENT_JOKIS[0];
+    displayedJokis[activeJokiIndex] || displayedJokis[0] || INITIAL_RECENT_JOKIS[0];
 
   const handleOpenCreateModal = () => {
     setModalMode('create');
     setEditingJokiId(null);
+    const nowIso = new Date().toISOString();
     setNewJokiForm({
       clientName: "Klien Baru (Kota)",
       packageName: "Paket Divisi 1 (Road to D1)",
@@ -133,6 +155,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       status: "Sedang Proses",
       duration: "1 Hari",
       date: "Hari Ini",
+      completedAt: nowIso,
       winStreak: 6,
       platform: "steam",
       recordType: "points",
@@ -147,6 +170,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     setModalMode('update');
     setEditingJokiId(joki.id);
     const isWdl = joki.recordType === 'wdl' || !!joki.wdlRecord;
+    const completedTimestamp = joki.completedAt || new Date().toISOString();
     setNewJokiForm({
       clientName: joki.clientName || "",
       packageName: joki.packageName || "",
@@ -154,7 +178,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       targetRating: joki.targetRating ?? 1850,
       status: joki.status || "Sedang Proses",
       duration: joki.duration || "1 Hari",
-      date: joki.date || "Hari Ini",
+      date: formatRelativeJokiDate(joki.date, completedTimestamp),
+      completedAt: completedTimestamp,
       winStreak: joki.winStreak ?? 6,
       platform: joki.platform || "steam",
       recordType: isWdl ? "wdl" : "points",
@@ -172,6 +197,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     if (modalMode === 'update' && editingJokiId) {
       const updated = recentJokis.map((item) => {
         if (item.id === editingJokiId) {
+          const completedTimestamp =
+            newJokiForm.status === 'Selesai' && item.status !== 'Selesai'
+              ? new Date().toISOString()
+              : (newJokiForm.completedAt || item.completedAt || new Date().toISOString());
+
           return {
             ...item,
             clientName: newJokiForm.clientName || item.clientName,
@@ -179,7 +209,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             status: newJokiForm.status,
             duration: newJokiForm.duration,
             platform: newJokiForm.platform,
-            date: newJokiForm.date,
+            completedAt: completedTimestamp,
+            date: formatRelativeJokiDate(newJokiForm.date, completedTimestamp),
             winStreak: Number(newJokiForm.winStreak) || (isWdl ? Number(newJokiForm.win) || item.winStreak : item.winStreak),
             recordType: isWdl ? ('wdl' as const) : ('points' as const),
             initialRating: isWdl ? undefined : Number(newJokiForm.initialRating) || 1400,
@@ -192,7 +223,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           };
         }
         return item;
-      });
+      }).slice(0, 10);
 
       setRecentJokis(updated);
       localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
@@ -229,13 +260,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       setIsEditModalOpen(false);
     } else {
       // Create new joki
+      const nowIso = new Date().toISOString();
       const created: RecentJoki = {
         id: "rj-" + Date.now(),
         clientName: newJokiForm.clientName || "Klien Baru",
         packageName: newJokiForm.packageName || (isWdl ? "Paket Event Weekend" : "Paket Divisi 1"),
         status: (newJokiForm.status as "Selesai" | "Sedang Proses") || "Sedang Proses",
         duration: newJokiForm.duration || "1 Hari",
-        date: newJokiForm.date || "Hari Ini",
+        completedAt: nowIso,
+        createdAt: nowIso,
+        date: formatRelativeJokiDate(newJokiForm.date, nowIso),
         winStreak: Number(newJokiForm.winStreak) || (isWdl ? Number(newJokiForm.win) || 5 : 12),
         platform: (newJokiForm.platform as GamingPlatform) || "steam",
         recordType: isWdl ? 'wdl' : 'points',
@@ -247,7 +281,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           loss: Number(newJokiForm.loss) || 0,
         } : undefined,
       };
-      const updated = [created, ...recentJokis];
+      const updated = [created, ...recentJokis].slice(0, 10);
       setRecentJokis(updated);
       localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
       window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: updated }));
@@ -260,8 +294,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   const handleDeleteActiveJoki = (id: string) => {
     if (confirm('Hapus item joki ini dari etalase Data Joki Terakhir?')) {
-      const updated = recentJokis.filter((j) => j.id !== id);
-      const nextList = updated.length > 0 ? updated : INITIAL_RECENT_JOKIS;
+      const updated = recentJokis.filter((j) => j.id !== id).slice(0, 10);
+      const nextList = updated.length > 0 ? updated : INITIAL_RECENT_JOKIS.slice(0, 10).map(ensureJokiCompletedAt);
       setRecentJokis(nextList);
       localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(nextList));
       window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: nextList }));
@@ -449,7 +483,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <div className="relative rounded-2xl sm:rounded-3xl p-0.5 sm:p-1 bg-gradient-to-b from-cyan-500/30 via-indigo-500/20 to-slate-300 dark:to-slate-800 shadow-xl dark:shadow-2xl w-full min-w-0 max-w-full">
                 <div className="rounded-[18px] sm:rounded-[22px] bg-white dark:bg-[#0c121e] p-3.5 sm:p-5 md:p-6 space-y-4 sm:space-y-5 border border-slate-200 dark:border-slate-800/60 backdrop-blur-md w-full min-w-0 max-w-full">
                   {/* Header: DATA JOKI TERAKHIR */}
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 pb-3 sm:pb-4 gap-2 min-w-0">
+                  <div className="flex flex-wrap items-center justify-between border-b border-slate-200 dark:border-slate-800/80 pb-3 sm:pb-4 gap-2 min-w-0">
                     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl overflow-hidden border border-cyan-500/30 shadow-sm bg-slate-900 shrink-0">
                         <img
@@ -459,184 +493,343 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                         />
                       </div>
                       <div className="min-w-0">
-                        <h4 className="font-display font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
-                          Data Joki Terakhir
-                        </h4>
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="font-display font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                            Data Joki Terakhir
+                          </h4>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30 font-mono shrink-0">
+                            10 Terbaru
+                          </span>
+                        </div>
                         <p className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-medium truncate">
                           Update Riwayat Pengerjaan Klien
                         </p>
                       </div>
                     </div>
 
-                    {/* Owner Action Buttons: Update Joki Aktif, Tambah Baru, Hapus */}
-                    {isAdmin && (
-                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                        {/* Tombol UPDATE Joki Aktif */}
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                      {/* View Switcher: Kartu vs Tabel */}
+                      <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
                         <button
-                          onClick={() => handleOpenUpdateModal(currentJoki)}
-                          className="p-1.5 px-2.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] font-bold flex items-center gap-1 border border-amber-500/30 shrink-0 hover:bg-amber-500/30 transition cursor-pointer"
-                          title="Update joki yang sedang aktif dipilih / dikerjakan"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                          <span>Update Joki Aktif</span>
-                        </button>
-
-                        {/* Tombol TAMBAH Joki Baru */}
-                        <button
-                          onClick={handleOpenCreateModal}
-                          className="p-1.5 px-2 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[11px] font-bold flex items-center gap-1 border border-cyan-500/30 shrink-0 hover:bg-cyan-500/30 transition cursor-pointer"
-                          title="Tambah data joki baru ke etalase"
-                        >
-                          <span>+ Tambah Baru</span>
-                        </button>
-
-                        {/* Tombol HAPUS */}
-                        {recentJokis.length > 1 && (
-                          <button
-                            onClick={() => handleDeleteActiveJoki(currentJoki.id)}
-                            className="p-1.5 px-2 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[11px] font-bold flex items-center gap-1 border border-rose-500/30 shrink-0 hover:bg-rose-500/30 transition cursor-pointer"
-                            title="Hapus data joki ini dari etalase"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            <span className="hidden xs:inline">Hapus</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Active Joki Selector Tabs */}
-                  <div className="w-full min-w-0 max-w-full overflow-hidden">
-                    <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-none w-full min-w-0">
-                      {recentJokis.map((item, idx) => (
-                        <button
-                          key={item.id}
-                          onClick={() => setActiveJokiIndex(idx)}
-                          className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-medium whitespace-nowrap transition shrink-0 ${
-                            activeJokiIndex === idx
-                              ? "bg-cyan-500 text-white font-bold shadow-sm"
-                              : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                          type="button"
+                          onClick={() => setViewMode("card")}
+                          className={`px-2 py-1 rounded-md text-[10px] sm:text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+                            viewMode === "card"
+                              ? "bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-xs"
+                              : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                           }`}
+                          title="Tampilan Kartu Interaktif"
                         >
-                          {item.clientName.split(" ")[0]} ({item.status})
+                          <LayoutGrid className="w-3 h-3" />
+                          <span>Kartu</span>
                         </button>
-                      ))}
-                    </div>
-                  </div>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("table")}
+                          className={`px-2 py-1 rounded-md text-[10px] sm:text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+                            viewMode === "table"
+                              ? "bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-xs"
+                              : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                          }`}
+                          title="Tampilan Tabel 10 Joki Terakhir"
+                        >
+                          <Table className="w-3 h-3" />
+                          <span>Tabel</span>
+                        </button>
+                      </div>
 
-                  {/* Active Joki Showcase Card */}
-                  <div className="bg-slate-50 dark:bg-slate-900/90 rounded-2xl p-3 sm:p-4 border border-slate-200 dark:border-slate-800 space-y-2.5 sm:space-y-3 w-full min-w-0">
-                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
-                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[55%] sm:max-w-none">
-                        {currentJoki.clientName}
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md font-bold border shrink-0 ${
-                          currentJoki.status === 'Sedang Proses'
-                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
-                            : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                        }`}>
-                          {currentJoki.status} • {currentJoki.date}
-                        </span>
-                        {isAdmin && (
+                      {/* Owner Action Buttons: Update Joki Aktif, Tambah Baru, Hapus */}
+                      {isAdmin && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* Tombol UPDATE Joki Aktif */}
                           <button
                             onClick={() => handleOpenUpdateModal(currentJoki)}
-                            className="p-1 px-2 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-500/30 hover:bg-amber-500/30 transition flex items-center gap-1 cursor-pointer"
-                            title="Edit joki ini (skor, status, atau durasi)"
+                            className="p-1 px-2 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 border border-amber-500/30 shrink-0 hover:bg-amber-500/30 transition cursor-pointer"
+                            title="Update joki yang sedang aktif dipilih / dikerjakan"
                           >
-                            <Edit2 className="w-2.5 h-2.5" />
-                            <span>Edit Ini</span>
+                            <Edit2 className="w-3 h-3" />
+                            <span className="hidden sm:inline">Update</span>
                           </button>
-                        )}
-                      </div>
+
+                          {/* Tombol TAMBAH Joki Baru */}
+                          <button
+                            onClick={handleOpenCreateModal}
+                            className="p-1 px-2 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 border border-cyan-500/30 shrink-0 hover:bg-cyan-500/30 transition cursor-pointer"
+                            title="Tambah data joki baru ke etalase"
+                          >
+                            <span>+ Tambah</span>
+                          </button>
+
+                          {/* Tombol HAPUS */}
+                          {recentJokis.length > 1 && (
+                            <button
+                              onClick={() => handleDeleteActiveJoki(currentJoki.id)}
+                              className="p-1 px-1.5 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold flex items-center gap-1 border border-rose-500/30 shrink-0 hover:bg-rose-500/30 transition cursor-pointer"
+                              title="Hapus data joki ini dari etalase"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-
-                    <div className="flex items-center justify-between gap-2 min-w-0">
-                      <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-400 truncate min-w-0">
-                        {currentJoki.packageName}
-                      </p>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold shrink-0">
-                        {currentJoki.platform
-                          ? currentJoki.platform.toUpperCase()
-                          : "STEAM/CONSOLE"}
-                      </span>
-                    </div>
-
-                    {/* Match Metric: W-D-L for Weekend Event OR Rating Points for Division */}
-                    {currentJoki.recordType === 'wdl' || currentJoki.wdlRecord || !currentJoki.initialRating ? (
-                      <div className="bg-white/70 dark:bg-slate-950/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 w-full min-w-0">
-                        <div className="flex items-center justify-between mb-1.5 px-0.5">
-                          <span className="text-[10px] font-mono text-cyan-600 dark:text-cyan-400 font-bold uppercase tracking-wider">
-                            Rekor Match (W - D - L)
-                          </span>
-                          <span className="text-[10px] font-mono text-slate-500">
-                            Durasi: {currentJoki.duration}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center">
-                          <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                            <p className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                              WIN (MENANG)
-                            </p>
-                            <p className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
-                              {currentJoki.wdlRecord?.win ?? currentJoki.winStreak ?? 0}
-                            </p>
-                          </div>
-                          <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                            <p className="text-[9px] sm:text-[10px] font-bold text-amber-600 dark:text-amber-400 font-mono">
-                              DRAW (SERI)
-                            </p>
-                            <p className="text-base sm:text-lg font-black font-mono text-amber-600 dark:text-amber-400">
-                              {currentJoki.wdlRecord?.draw ?? 0}
-                            </p>
-                          </div>
-                          <div className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                            <p className="text-[9px] sm:text-[10px] font-bold text-rose-600 dark:text-rose-400 font-mono">
-                              LOSS (KALAH)
-                            </p>
-                            <p className="text-base sm:text-lg font-black font-mono text-rose-600 dark:text-rose-400">
-                              {currentJoki.wdlRecord?.loss ?? 0}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 items-center gap-1 sm:gap-2 pt-1 text-center bg-white/70 dark:bg-slate-950/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 w-full min-w-0">
-                        {/* Initial Points */}
-                        <div className="text-left min-w-0">
-                          <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono uppercase tracking-wider truncate">
-                            Poin Awal
-                          </p>
-                          <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-slate-900 dark:text-slate-100 truncate">
-                            {currentJoki.initialRating} <span className="text-[10px] font-normal text-slate-400">Pts</span>
-                          </p>
-                        </div>
-
-                        {/* Middle Diff + Progress Bar */}
-                        <div className="flex flex-col items-center justify-center px-0.5 min-w-0">
-                          <span className="text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold font-mono whitespace-nowrap">
-                            +{((currentJoki.targetRating || 0) - (currentJoki.initialRating || 0))} ⚡️
-                          </span>
-                          <div className="w-full max-w-[65px] sm:max-w-[85px] h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full my-1 overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-full animate-pulse"></div>
-                          </div>
-                          <span className="text-[9px] sm:text-[10px] text-slate-500 font-mono truncate">
-                            {currentJoki.duration}
-                          </span>
-                        </div>
-
-                        {/* Target Points */}
-                        <div className="text-right min-w-0">
-                          <p className="text-[9px] sm:text-[10px] text-amber-500 font-mono uppercase tracking-wider truncate">
-                            Hasil Akhir
-                          </p>
-                          <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-amber-500 dark:text-amber-300 truncate">
-                            {currentJoki.targetRating} <span className="text-[10px] font-normal">Pts</span>
-                          </p>
-                        </div>
-                      </div>
-                    )}
                   </div>
+
+                  {/* KONTEN: TAMPILAN TABEL ATAU KARTU */}
+                  {viewMode === "table" ? (
+                    /* ================= TABEL 10 JOKI TERAKHIR ================= */
+                    <div className="w-full min-w-0 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-0.5">
+                        <span className="font-mono text-[11px] text-cyan-700 dark:text-cyan-300 font-bold">
+                          📋 Tabel 10 Joki Terakhir (Auto Update)
+                        </span>
+                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded font-mono font-bold text-slate-600 dark:text-slate-300">
+                          {displayedJokis.length}/10 Data
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-950/70 shadow-inner max-h-[360px] overflow-y-auto scrollbar-thin">
+                        <table className="w-full text-left border-collapse text-[11px] sm:text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[10px] sm:text-[11px] uppercase font-mono tracking-wider sticky top-0 z-10 backdrop-blur-xs">
+                              <th className="py-2 px-2 font-bold text-center">#</th>
+                              <th className="py-2 px-2.5 font-bold">Klien & Platform</th>
+                              <th className="py-2 px-2.5 font-bold">Layanan / Skor</th>
+                              <th className="py-2 px-2.5 font-bold whitespace-nowrap">Waktu</th>
+                              <th className="py-2 px-2 font-bold text-center">Status</th>
+                              {isAdmin && <th className="py-2 px-2 font-bold text-center">Aksi</th>}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
+                            {displayedJokis.map((item, idx) => {
+                              const isWdl = item.recordType === 'wdl' || !!item.wdlRecord;
+                              const relDate = formatRelativeJokiDate(item.date, item.completedAt);
+                              const isCurrent = activeJokiIndex === idx;
+
+                              return (
+                                <tr
+                                  key={item.id}
+                                  onClick={() => setActiveJokiIndex(idx)}
+                                  className={`hover:bg-cyan-500/10 transition cursor-pointer ${
+                                    isCurrent ? "bg-cyan-500/15 dark:bg-cyan-500/20 font-medium" : ""
+                                  }`}
+                                >
+                                  <td className="py-2 px-2 text-center font-mono font-bold text-slate-400">
+                                    {idx + 1}
+                                  </td>
+                                  <td className="py-2 px-2.5 min-w-[110px]">
+                                    <div className="font-bold text-slate-900 dark:text-white truncate max-w-[120px]">
+                                      {item.clientName}
+                                    </div>
+                                    <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase">
+                                      {item.platform || "STEAM"}
+                                    </div>
+                                  </td>
+                                  <td className="py-2 px-2.5 min-w-[130px]">
+                                    <div className="text-slate-700 dark:text-slate-300 font-medium truncate max-w-[140px]">
+                                      {item.packageName}
+                                    </div>
+                                    <div className="text-[10px] font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                                      {isWdl ? (
+                                        `W:${item.wdlRecord?.win ?? 0} D:${item.wdlRecord?.draw ?? 0} L:${item.wdlRecord?.loss ?? 0}`
+                                      ) : (
+                                        `${item.initialRating ?? '-'} ➔ ${item.targetRating ?? '-'} Pts`
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="py-2 px-2.5 whitespace-nowrap font-mono text-[11px] text-slate-700 dark:text-slate-200 font-semibold">
+                                    {relDate}
+                                  </td>
+                                  <td className="py-2 px-2 text-center whitespace-nowrap">
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border inline-block ${
+                                      item.status === 'Sedang Proses'
+                                        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
+                                        : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                    }`}>
+                                      {item.status}
+                                    </span>
+                                  </td>
+                                  {isAdmin && (
+                                    <td className="py-2 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        onClick={() => handleOpenUpdateModal(item)}
+                                        className="p-1 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30 transition cursor-pointer"
+                                        title="Edit data joki ini"
+                                      >
+                                        <Edit2 className="w-3 h-3" />
+                                      </button>
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-1 text-[11px]">
+                        <span className="text-slate-400 text-[10px]">
+                          Klik baris untuk memilih joki
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("card")}
+                          className="text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                        >
+                          <LayoutGrid className="w-3 h-3" />
+                          <span>Tampilan Kartu Detail &rarr;</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ================= KARTU DETAIL INTERAKTIF ================= */
+                    <div className="space-y-3">
+                      {/* Active Joki Selector Tabs (Maks 10 Joki) */}
+                      <div className="w-full min-w-0 max-w-full overflow-hidden">
+                        <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-none w-full min-w-0">
+                          {displayedJokis.map((item, idx) => (
+                            <button
+                              key={item.id}
+                              onClick={() => setActiveJokiIndex(idx)}
+                              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-medium whitespace-nowrap transition shrink-0 cursor-pointer ${
+                                activeJokiIndex === idx
+                                  ? "bg-cyan-500 text-white font-bold shadow-sm"
+                                  : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                              }`}
+                            >
+                              {item.clientName.split(" ")[0]} ({formatRelativeJokiDate(item.date, item.completedAt)})
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Active Joki Showcase Card */}
+                      <div className="bg-slate-50 dark:bg-slate-900/90 rounded-2xl p-3 sm:p-4 border border-slate-200 dark:border-slate-800 space-y-2.5 sm:space-y-3 w-full min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[55%] sm:max-w-none">
+                            {currentJoki.clientName}
+                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={`text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md font-bold border shrink-0 ${
+                              currentJoki.status === 'Sedang Proses'
+                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
+                                : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                            }`}>
+                              {currentJoki.status} • {formatRelativeJokiDate(currentJoki.date, currentJoki.completedAt)}
+                            </span>
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleOpenUpdateModal(currentJoki)}
+                                className="p-1 px-2 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-500/30 hover:bg-amber-500/30 transition flex items-center gap-1 cursor-pointer"
+                                title="Edit joki ini (skor, status, atau durasi)"
+                              >
+                                <Edit2 className="w-2.5 h-2.5" />
+                                <span>Edit Ini</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-400 truncate min-w-0">
+                            {currentJoki.packageName}
+                          </p>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold shrink-0">
+                            {currentJoki.platform
+                              ? currentJoki.platform.toUpperCase()
+                              : "STEAM/CONSOLE"}
+                          </span>
+                        </div>
+
+                        {/* Match Metric: W-D-L for Weekend Event OR Rating Points for Division */}
+                        {currentJoki.recordType === 'wdl' || currentJoki.wdlRecord || !currentJoki.initialRating ? (
+                          <div className="bg-white/70 dark:bg-slate-950/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 w-full min-w-0">
+                            <div className="flex items-center justify-between mb-1.5 px-0.5">
+                              <span className="text-[10px] font-mono text-cyan-600 dark:text-cyan-400 font-bold uppercase tracking-wider">
+                                Rekor Match (W - D - L)
+                              </span>
+                              <span className="text-[10px] font-mono text-slate-500">
+                                Durasi: {currentJoki.duration}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center">
+                              <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                <p className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                                  WIN (MENANG)
+                                </p>
+                                <p className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
+                                  {currentJoki.wdlRecord?.win ?? currentJoki.winStreak ?? 0}
+                                </p>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                <p className="text-[9px] sm:text-[10px] font-bold text-amber-600 dark:text-amber-400 font-mono">
+                                  DRAW (SERI)
+                                </p>
+                                <p className="text-base sm:text-lg font-black font-mono text-amber-600 dark:text-amber-400">
+                                  {currentJoki.wdlRecord?.draw ?? 0}
+                                </p>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                                <p className="text-[9px] sm:text-[10px] font-bold text-rose-600 dark:text-rose-400 font-mono">
+                                  LOSS (KALAH)
+                                </p>
+                                <p className="text-base sm:text-lg font-black font-mono text-rose-600 dark:text-rose-400">
+                                  {currentJoki.wdlRecord?.loss ?? 0}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-3 items-center gap-1 sm:gap-2 pt-1 text-center bg-white/70 dark:bg-slate-950/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 w-full min-w-0">
+                            {/* Initial Points */}
+                            <div className="text-left min-w-0">
+                              <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono uppercase tracking-wider truncate">
+                                Poin Awal
+                              </p>
+                              <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-slate-900 dark:text-slate-100 truncate">
+                                {currentJoki.initialRating} <span className="text-[10px] font-normal text-slate-400">Pts</span>
+                              </p>
+                            </div>
+
+                            {/* Middle Diff + Progress Bar */}
+                            <div className="flex flex-col items-center justify-center px-0.5 min-w-0">
+                              <span className="text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold font-mono whitespace-nowrap">
+                                +{((currentJoki.targetRating || 0) - (currentJoki.initialRating || 0))} ⚡️
+                              </span>
+                              <div className="w-full max-w-[65px] sm:max-w-[85px] h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full my-1 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-full animate-pulse"></div>
+                              </div>
+                              <span className="text-[9px] sm:text-[10px] text-slate-500 font-mono truncate">
+                                {currentJoki.duration}
+                              </span>
+                            </div>
+
+                            {/* Target Points */}
+                            <div className="text-right min-w-0">
+                              <p className="text-[9px] sm:text-[10px] text-amber-500 font-mono uppercase tracking-wider truncate">
+                                Hasil Akhir
+                              </p>
+                              <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-amber-500 dark:text-amber-300 truncate">
+                                {currentJoki.targetRating} <span className="text-[10px] font-normal">Pts</span>
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Quick link ke mode tabel */}
+                        <div className="flex justify-end pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setViewMode("table")}
+                            className="text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                          >
+                            <Table className="w-3 h-3" />
+                            <span>Lihat Tabel Lengkap (Maks 10 Joki Terakhir) &rarr;</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Highlight All-In Package Banner */}
                   <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full min-w-0">
@@ -931,19 +1124,56 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 </div>
               )}
 
-              <div>
-                <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
-                  Durasi Pengerjaan
-                </label>
-                <input
-                  type="text"
-                  value={newJokiForm.duration}
-                  onChange={(e) =>
-                    setNewJokiForm({ ...newJokiForm, duration: e.target.value })
-                  }
-                  placeholder="24 Jam / 1.5 Hari"
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                    Durasi Pengerjaan
+                  </label>
+                  <input
+                    type="text"
+                    value={newJokiForm.duration}
+                    onChange={(e) =>
+                      setNewJokiForm({ ...newJokiForm, duration: e.target.value })
+                    }
+                    placeholder="24 Jam / 1.5 Hari"
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                    Waktu Selesai
+                  </label>
+                  <select
+                    value={newJokiForm.date}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const now = new Date();
+                      let target = now;
+                      if (val === 'Kemarin') {
+                        target = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
+                      } else if (val.includes('Hari Lalu')) {
+                        const days = parseInt(val, 10) || 2;
+                        target = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+                      }
+                      setNewJokiForm({
+                        ...newJokiForm,
+                        date: val,
+                        completedAt: target.toISOString(),
+                      });
+                    }}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                  >
+                    <option value="Hari Ini">Hari Ini</option>
+                    <option value="Kemarin">Kemarin</option>
+                    <option value="2 Hari Lalu">2 Hari Lalu</option>
+                    <option value="3 Hari Lalu">3 Hari Lalu</option>
+                    <option value="4 Hari Lalu">4 Hari Lalu</option>
+                    <option value="5 Hari Lalu">5 Hari Lalu</option>
+                    <option value="6 Hari Lalu">6 Hari Lalu</option>
+                    <option value="7 Hari Lalu">7 Hari Lalu</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

@@ -40,6 +40,7 @@ import {
   subscribeToCloudOrders,
   updateOrderStatusCloud,
   deleteOrderFromCloud,
+  saveRecentJokisCloud,
   resetPromoSlotsCloud,
   resetReferralSlotsCloud,
   FirebaseConfig,
@@ -259,14 +260,17 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
             return {
               ...j,
               status: nextStatus,
+              completedAt: nextStatus === 'Selesai' ? (j.completedAt || new Date().toISOString()) : j.completedAt,
+              date: nextStatus === 'Selesai' ? 'Hari Ini' : j.date,
             };
           }
           return j;
-        });
+        }).slice(0, 10);
         localStorage.setItem('benbalfas_recent_jokis', JSON.stringify(updatedJokis));
         window.dispatchEvent(
           new CustomEvent('benbalfas_recent_jokis_updated', { detail: updatedJokis })
         );
+        saveRecentJokisCloud(updatedJokis).catch(() => {});
       }
     } catch (err) {
       console.error(err);
@@ -287,11 +291,12 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
         const rawJokis = localStorage.getItem('benbalfas_recent_jokis');
         if (rawJokis) {
           const jokis = JSON.parse(rawJokis);
-          const updatedJokis = jokis.filter((j: any) => j.id !== 'rj-' + orderId);
+          const updatedJokis = jokis.filter((j: any) => j.id !== 'rj-' + orderId).slice(0, 10);
           localStorage.setItem('benbalfas_recent_jokis', JSON.stringify(updatedJokis));
           window.dispatchEvent(
             new CustomEvent('benbalfas_recent_jokis_updated', { detail: updatedJokis })
           );
+          saveRecentJokisCloud(updatedJokis).catch(() => {});
         }
       } catch {}
     }

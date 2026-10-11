@@ -1,4 +1,4 @@
-import { BracketTier, CalculationBreakdownItem, PricingCalculationResult, GamingPlatform } from '../types';
+import { BracketTier, CalculationBreakdownItem, PricingCalculationResult, GamingPlatform, RecentJoki } from '../types';
 
 export const BRACKET_TIERS: BracketTier[] = [
   { id: 1, name: 'Tier 1 (1200 - 1800 Pts)', min: 1200, max: 1800, rate: 700, color: 'text-cyan-400 border-cyan-500/30' },
@@ -400,5 +400,121 @@ export function resetReferralSlots(): void {
     window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
   } catch {}
   resetReferralSlotsCloud().catch(() => {});
+}
+
+// =========================================================================
+// LOGIC WAKTU RELATIF DINAMIS DATA JOKI TERAKHIR
+// - Hari Ini (0 hari)
+// - Kemarin (1 hari lalu)
+// - 2 - 7 Hari Lalu (2 s/d 7 hari)
+// - > 7 Hari: Format Tanggal (e.g. "4 Okt 2026")
+// =========================================================================
+
+export function formatRelativeJokiDate(
+  dateInput?: string | Date,
+  completedAt?: string
+): string {
+  let targetDate: Date | null = null;
+
+  if (completedAt) {
+    const parsed = new Date(completedAt);
+    if (!isNaN(parsed.getTime())) {
+      targetDate = parsed;
+    }
+  }
+
+  if (!targetDate && dateInput) {
+    if (dateInput instanceof Date) {
+      targetDate = dateInput;
+    } else if (typeof dateInput === 'string') {
+      const trimmed = dateInput.trim();
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime()) && (trimmed.includes('-') || trimmed.includes('/'))) {
+        targetDate = parsed;
+      } else {
+        const lower = trimmed.toLowerCase();
+        const now = new Date();
+        if (lower === 'hari ini' || lower === 'today') {
+          targetDate = now;
+        } else if (lower === 'kemarin' || lower === 'yesterday') {
+          targetDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
+        } else {
+          const match = lower.match(/^(\d+)\s*hari\s*lalu/i);
+          if (match) {
+            const days = parseInt(match[1], 10);
+            targetDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+          }
+        }
+      }
+    }
+  }
+
+  if (!targetDate) {
+    return typeof dateInput === 'string' ? dateInput : 'Hari Ini';
+  }
+
+  // Hitung perbedaan hari kalender secara akurat (berdasarkan midnight hari lokal)
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const targetMidnight = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).getTime();
+
+  const diffMs = todayMidnight - targetMidnight;
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) {
+    return 'Hari Ini';
+  } else if (diffDays === 1) {
+    return 'Kemarin';
+  } else if (diffDays >= 2 && diffDays <= 7) {
+    return `${diffDays} Hari Lalu`;
+  } else {
+    // Lebih dari 7 hari: Ubah jadi tanggal format Indonesia (e.g. "4 Okt 2026")
+    const day = targetDate.getDate();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const month = months[targetDate.getMonth()];
+    const year = targetDate.getFullYear();
+    return `${day} ${month} ${year}`;
+  }
+}
+
+/**
+ * Memastikan setiap item RecentJoki memiliki completedAt yang valid
+ * Jika belum ada, diinisialisasi berdasarkan teks date saat ini
+ */
+export function ensureJokiCompletedAt(joki: RecentJoki): RecentJoki {
+  if (joki.completedAt) {
+    return {
+      ...joki,
+      date: formatRelativeJokiDate(joki.date, joki.completedAt),
+    };
+  }
+
+  const now = new Date();
+  let calculatedDate: Date = now;
+  const lower = (joki.date || '').toLowerCase().trim();
+
+  if (lower === 'hari ini' || lower === 'today') {
+    calculatedDate = now;
+  } else if (lower === 'kemarin' || lower === 'yesterday') {
+    calculatedDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
+  } else {
+    const match = lower.match(/^(\d+)\s*hari\s*lalu/i);
+    if (match) {
+      const days = parseInt(match[1], 10);
+      calculatedDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    } else {
+      const parsed = new Date(joki.date);
+      if (!isNaN(parsed.getTime())) {
+        calculatedDate = parsed;
+      }
+    }
+  }
+
+  const iso = calculatedDate.toISOString();
+  return {
+    ...joki,
+    completedAt: iso,
+    date: formatRelativeJokiDate(joki.date, iso),
+  };
 }
 

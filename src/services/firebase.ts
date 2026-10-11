@@ -451,7 +451,7 @@ export const subscribeToCloudRecentJokis = (
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (Array.isArray(data.list) && data.list.length > 0) {
-            callback(data.list);
+            callback(data.list.slice(0, 10));
           }
         }
       },
@@ -466,7 +466,7 @@ export const subscribeToCloudRecentJokis = (
 };
 
 /**
- * Menyimpan seluruh daftar Data Joki Terakhir ke Cloud
+ * Menyimpan seluruh daftar Data Joki Terakhir ke Cloud (Maks 10 Jokian Terakhir)
  */
 export const saveRecentJokisCloud = async (jokis: RecentJoki[]): Promise<boolean> => {
   const db = getFirebaseDb();
@@ -477,7 +477,7 @@ export const saveRecentJokisCloud = async (jokis: RecentJoki[]): Promise<boolean
     await setDoc(
       showcaseRef,
       {
-        list: jokis,
+        list: jokis.slice(0, 10),
         updatedAt: new Date().toISOString(),
       },
       { merge: true }

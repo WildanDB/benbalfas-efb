@@ -20,7 +20,10 @@ import {
   saveRecentJokisCloud,
   updateOrderStatusCloud,
 } from "../services/firebase";
-import { formatRelativeJokiDate, ensureJokiCompletedAt } from "../utils/pricing";
+import {
+  formatRelativeJokiDate,
+  ensureJokiCompletedAt,
+} from "../utils/pricing";
 
 interface HeroSectionProps {
   onNavigateToJoki: () => void;
@@ -76,7 +79,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       if (Array.isArray(cloudJokis) && cloudJokis.length > 0) {
         const sanitized = cloudJokis.slice(0, 10).map(ensureJokiCompletedAt);
         setRecentJokis(sanitized);
-        localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(sanitized));
+        localStorage.setItem(
+          "benbalfas_recent_jokis",
+          JSON.stringify(sanitized),
+        );
       }
     });
 
@@ -101,17 +107,26 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       }
     };
 
-    window.addEventListener("benbalfas_recent_jokis_updated", handleRecentJokisUpdated);
+    window.addEventListener(
+      "benbalfas_recent_jokis_updated",
+      handleRecentJokisUpdated,
+    );
     window.addEventListener("storage", handleRecentJokisUpdated);
 
     // Refresh perhitungan waktu relatif setiap 15 menit agar saat berganti hari jam 00:00 otomatis update
-    const timer = setInterval(() => {
-      setRecentJokis((prev) => prev.slice(0, 10).map(ensureJokiCompletedAt));
-    }, 15 * 60 * 1000);
+    const timer = setInterval(
+      () => {
+        setRecentJokis((prev) => prev.slice(0, 10).map(ensureJokiCompletedAt));
+      },
+      15 * 60 * 1000,
+    );
 
     return () => {
       if (unsubCloud) unsubCloud();
-      window.removeEventListener("benbalfas_recent_jokis_updated", handleRecentJokisUpdated);
+      window.removeEventListener(
+        "benbalfas_recent_jokis_updated",
+        handleRecentJokisUpdated,
+      );
       window.removeEventListener("storage", handleRecentJokisUpdated);
       clearInterval(timer);
     };
@@ -120,7 +135,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const displayedJokis = recentJokis.slice(0, 10);
   const [activeJokiIndex, setActiveJokiIndex] = useState(0);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'update'>('create');
+  const [modalMode, setModalMode] = useState<"create" | "update">("create");
   const [editingJokiId, setEditingJokiId] = useState<string | null>(null);
 
   const [newJokiForm, setNewJokiForm] = useState({
@@ -141,10 +156,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   });
 
   const currentJoki =
-    displayedJokis[activeJokiIndex] || displayedJokis[0] || INITIAL_RECENT_JOKIS[0];
+    displayedJokis[activeJokiIndex] ||
+    displayedJokis[0] ||
+    INITIAL_RECENT_JOKIS[0];
 
   const handleOpenCreateModal = () => {
-    setModalMode('create');
+    setModalMode("create");
     setEditingJokiId(null);
     const nowIso = new Date().toISOString();
     setNewJokiForm({
@@ -167,9 +184,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   };
 
   const handleOpenUpdateModal = (joki: RecentJoki = currentJoki) => {
-    setModalMode('update');
+    setModalMode("update");
     setEditingJokiId(joki.id);
-    const isWdl = joki.recordType === 'wdl' || !!joki.wdlRecord;
+    const isWdl = joki.recordType === "wdl" || !!joki.wdlRecord;
     const completedTimestamp = joki.completedAt || new Date().toISOString();
     setNewJokiForm({
       clientName: joki.clientName || "",
@@ -192,68 +209,103 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   const handleSaveRecentJoki = (e: React.FormEvent) => {
     e.preventDefault();
-    const isWdl = newJokiForm.recordType === 'wdl' || newJokiForm.packageName.toLowerCase().includes('weekend');
+    const isWdl =
+      newJokiForm.recordType === "wdl" ||
+      newJokiForm.packageName.toLowerCase().includes("weekend");
 
-    if (modalMode === 'update' && editingJokiId) {
-      const updated = recentJokis.map((item) => {
-        if (item.id === editingJokiId) {
-          const completedTimestamp =
-            newJokiForm.status === 'Selesai' && item.status !== 'Selesai'
-              ? new Date().toISOString()
-              : (newJokiForm.completedAt || item.completedAt || new Date().toISOString());
+    if (modalMode === "update" && editingJokiId) {
+      const updated = recentJokis
+        .map((item) => {
+          if (item.id === editingJokiId) {
+            const completedTimestamp =
+              newJokiForm.status === "Selesai" && item.status !== "Selesai"
+                ? new Date().toISOString()
+                : newJokiForm.completedAt ||
+                  item.completedAt ||
+                  new Date().toISOString();
 
-          return {
-            ...item,
-            clientName: newJokiForm.clientName || item.clientName,
-            packageName: newJokiForm.packageName || item.packageName,
-            status: newJokiForm.status,
-            duration: newJokiForm.duration,
-            platform: newJokiForm.platform,
-            completedAt: completedTimestamp,
-            date: formatRelativeJokiDate(newJokiForm.date, completedTimestamp),
-            winStreak: Number(newJokiForm.winStreak) || (isWdl ? Number(newJokiForm.win) || item.winStreak : item.winStreak),
-            recordType: isWdl ? ('wdl' as const) : ('points' as const),
-            initialRating: isWdl ? undefined : Number(newJokiForm.initialRating) || 1400,
-            targetRating: isWdl ? undefined : Number(newJokiForm.targetRating) || 1850,
-            wdlRecord: isWdl ? {
-              win: Number(newJokiForm.win) || 0,
-              draw: Number(newJokiForm.draw) || 0,
-              loss: Number(newJokiForm.loss) || 0,
-            } : undefined,
-          };
-        }
-        return item;
-      }).slice(0, 10);
+            return {
+              ...item,
+              clientName: newJokiForm.clientName || item.clientName,
+              packageName: newJokiForm.packageName || item.packageName,
+              status: newJokiForm.status,
+              duration: newJokiForm.duration,
+              platform: newJokiForm.platform,
+              completedAt: completedTimestamp,
+              date: formatRelativeJokiDate(
+                newJokiForm.date,
+                completedTimestamp,
+              ),
+              winStreak:
+                Number(newJokiForm.winStreak) ||
+                (isWdl
+                  ? Number(newJokiForm.win) || item.winStreak
+                  : item.winStreak),
+              recordType: isWdl ? ("wdl" as const) : ("points" as const),
+              initialRating: isWdl
+                ? undefined
+                : Number(newJokiForm.initialRating) || 1400,
+              targetRating: isWdl
+                ? undefined
+                : Number(newJokiForm.targetRating) || 1850,
+              wdlRecord: isWdl
+                ? {
+                    win: Number(newJokiForm.win) || 0,
+                    draw: Number(newJokiForm.draw) || 0,
+                    loss: Number(newJokiForm.loss) || 0,
+                  }
+                : undefined,
+            };
+          }
+          return item;
+        })
+        .slice(0, 10);
 
       setRecentJokis(updated);
       localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: updated }));
+      window.dispatchEvent(
+        new CustomEvent("benbalfas_recent_jokis_updated", { detail: updated }),
+      );
       // Push ke Firebase Cloud Realtime
       saveRecentJokisCloud(updated).catch(() => {});
 
       // Sinkronisasikan juga ke Database pesanan jika ada ID pesanan yang cocok
       const cleanOrderId = editingJokiId.replace("rj-", "");
       if (newJokiForm.status) {
-        updateOrderStatusCloud(cleanOrderId, newJokiForm.status as any).catch(() => {});
+        updateOrderStatusCloud(cleanOrderId, newJokiForm.status as any).catch(
+          () => {},
+        );
       }
 
       try {
-        const rawSpreadsheet = localStorage.getItem("benbalfas_spreadsheet_records");
+        const rawSpreadsheet = localStorage.getItem(
+          "benbalfas_spreadsheet_records",
+        );
         if (rawSpreadsheet) {
           const sheetRecords = JSON.parse(rawSpreadsheet);
           const updatedSheets = sheetRecords.map((sr: any) => {
-            if (sr.orderId === cleanOrderId || sr.clientName === newJokiForm.clientName) {
+            if (
+              sr.orderId === cleanOrderId ||
+              sr.clientName === newJokiForm.clientName
+            ) {
               return {
                 ...sr,
                 status: newJokiForm.status,
-                initialRating: isWdl ? sr.initialRating : Number(newJokiForm.initialRating),
-                targetRating: isWdl ? sr.targetRating : Number(newJokiForm.targetRating),
+                initialRating: isWdl
+                  ? sr.initialRating
+                  : Number(newJokiForm.initialRating),
+                targetRating: isWdl
+                  ? sr.targetRating
+                  : Number(newJokiForm.targetRating),
                 duration: newJokiForm.duration,
               };
             }
             return sr;
           });
-          localStorage.setItem("benbalfas_spreadsheet_records", JSON.stringify(updatedSheets));
+          localStorage.setItem(
+            "benbalfas_spreadsheet_records",
+            JSON.stringify(updatedSheets),
+          );
         }
       } catch {}
 
@@ -264,27 +316,41 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       const created: RecentJoki = {
         id: "rj-" + Date.now(),
         clientName: newJokiForm.clientName || "Klien Baru",
-        packageName: newJokiForm.packageName || (isWdl ? "Paket Event Weekend" : "Paket Divisi 1"),
-        status: (newJokiForm.status as "Selesai" | "Sedang Proses") || "Sedang Proses",
+        packageName:
+          newJokiForm.packageName ||
+          (isWdl ? "Paket Event Weekend" : "Paket Divisi 1"),
+        status:
+          (newJokiForm.status as "Selesai" | "Sedang Proses") ||
+          "Sedang Proses",
         duration: newJokiForm.duration || "1 Hari",
         completedAt: nowIso,
         createdAt: nowIso,
         date: formatRelativeJokiDate(newJokiForm.date, nowIso),
-        winStreak: Number(newJokiForm.winStreak) || (isWdl ? Number(newJokiForm.win) || 5 : 12),
+        winStreak:
+          Number(newJokiForm.winStreak) ||
+          (isWdl ? Number(newJokiForm.win) || 5 : 12),
         platform: (newJokiForm.platform as GamingPlatform) || "steam",
-        recordType: isWdl ? 'wdl' : 'points',
-        initialRating: isWdl ? undefined : Number(newJokiForm.initialRating) || 1400,
-        targetRating: isWdl ? undefined : Number(newJokiForm.targetRating) || 1850,
-        wdlRecord: isWdl ? {
-          win: Number(newJokiForm.win) || 0,
-          draw: Number(newJokiForm.draw) || 0,
-          loss: Number(newJokiForm.loss) || 0,
-        } : undefined,
+        recordType: isWdl ? "wdl" : "points",
+        initialRating: isWdl
+          ? undefined
+          : Number(newJokiForm.initialRating) || 1400,
+        targetRating: isWdl
+          ? undefined
+          : Number(newJokiForm.targetRating) || 1850,
+        wdlRecord: isWdl
+          ? {
+              win: Number(newJokiForm.win) || 0,
+              draw: Number(newJokiForm.draw) || 0,
+              loss: Number(newJokiForm.loss) || 0,
+            }
+          : undefined,
       };
       const updated = [created, ...recentJokis].slice(0, 10);
       setRecentJokis(updated);
       localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: updated }));
+      window.dispatchEvent(
+        new CustomEvent("benbalfas_recent_jokis_updated", { detail: updated }),
+      );
       // Push ke Firebase Cloud Realtime
       saveRecentJokisCloud(updated).catch(() => {});
       setIsEditModalOpen(false);
@@ -293,12 +359,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   };
 
   const handleDeleteActiveJoki = (id: string) => {
-    if (confirm('Hapus item joki ini dari etalase Data Joki Terakhir?')) {
+    if (confirm("Hapus item joki ini dari etalase Data Joki Terakhir?")) {
       const updated = recentJokis.filter((j) => j.id !== id).slice(0, 10);
-      const nextList = updated.length > 0 ? updated : INITIAL_RECENT_JOKIS.slice(0, 10).map(ensureJokiCompletedAt);
+      const nextList =
+        updated.length > 0
+          ? updated
+          : INITIAL_RECENT_JOKIS.slice(0, 10).map(ensureJokiCompletedAt);
       setRecentJokis(nextList);
       localStorage.setItem("benbalfas_recent_jokis", JSON.stringify(nextList));
-      window.dispatchEvent(new CustomEvent('benbalfas_recent_jokis_updated', { detail: nextList }));
+      window.dispatchEvent(
+        new CustomEvent("benbalfas_recent_jokis_updated", { detail: nextList }),
+      );
       // Push ke Firebase Cloud Realtime
       saveRecentJokisCloud(nextList).catch(() => {});
       setActiveJokiIndex(0);
@@ -410,15 +481,21 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <div className="flex flex-wrap justify-center lg:justify-start gap-2 sm:gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-semibold">
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
                 <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
-                <span className="text-[11px] sm:text-xs">Garansi Anti-Banned & IP Lokal</span>
+                <span className="text-[11px] sm:text-xs">
+                  Garansi Anti-Banned & IP Lokal
+                </span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
                 <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
-                <span className="text-[11px] sm:text-xs">Harga Transparan Mulai 700/pt</span>
+                <span className="text-[11px] sm:text-xs">
+                  Harga Transparan Mulai 700/pt
+                </span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
                 <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
-                <span className="text-[11px] sm:text-xs">Handover OTP WhatsApp Cepat</span>
+                <span className="text-[11px] sm:text-xs">
+                  Handover OTP WhatsApp Cepat
+                </span>
               </div>
             </div>
 
@@ -563,7 +640,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                           {/* Tombol HAPUS */}
                           {recentJokis.length > 1 && (
                             <button
-                              onClick={() => handleDeleteActiveJoki(currentJoki.id)}
+                              onClick={() =>
+                                handleDeleteActiveJoki(currentJoki.id)
+                              }
                               className="p-1 px-1.5 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold flex items-center gap-1 border border-rose-500/30 shrink-0 hover:bg-rose-500/30 transition cursor-pointer"
                               title="Hapus data joki ini dari etalase"
                             >
@@ -581,10 +660,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     <div className="w-full min-w-0 space-y-2.5">
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-0.5">
                         <span className="font-mono text-[11px] text-cyan-700 dark:text-cyan-300 font-bold">
-                          📋 Tabel 10 Joki Terakhir (Auto Update)
-                        </span>
-                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded font-mono font-bold text-slate-600 dark:text-slate-300">
-                          {displayedJokis.length}/10 Data
+                          📋 Tabel 10 Joki Terakhir
                         </span>
                       </div>
 
@@ -592,18 +668,36 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                         <table className="w-full text-left border-collapse text-[11px] sm:text-xs">
                           <thead>
                             <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[10px] sm:text-[11px] uppercase font-mono tracking-wider sticky top-0 z-10 backdrop-blur-xs">
-                              <th className="py-2 px-2 font-bold text-center">#</th>
-                              <th className="py-2 px-2.5 font-bold">Klien & Platform</th>
-                              <th className="py-2 px-2.5 font-bold">Layanan / Skor</th>
-                              <th className="py-2 px-2.5 font-bold whitespace-nowrap">Waktu</th>
-                              <th className="py-2 px-2 font-bold text-center">Status</th>
-                              {isAdmin && <th className="py-2 px-2 font-bold text-center">Aksi</th>}
+                              <th className="py-2 px-2 font-bold text-center">
+                                #
+                              </th>
+                              <th className="py-2 px-2.5 font-bold">
+                                Klien & Platform
+                              </th>
+                              <th className="py-2 px-2.5 font-bold">
+                                Layanan / Skor
+                              </th>
+                              <th className="py-2 px-2.5 font-bold whitespace-nowrap">
+                                Waktu
+                              </th>
+                              <th className="py-2 px-2 font-bold text-center">
+                                Status
+                              </th>
+                              {isAdmin && (
+                                <th className="py-2 px-2 font-bold text-center">
+                                  Aksi
+                                </th>
+                              )}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
                             {displayedJokis.map((item, idx) => {
-                              const isWdl = item.recordType === 'wdl' || !!item.wdlRecord;
-                              const relDate = formatRelativeJokiDate(item.date, item.completedAt);
+                              const isWdl =
+                                item.recordType === "wdl" || !!item.wdlRecord;
+                              const relDate = formatRelativeJokiDate(
+                                item.date,
+                                item.completedAt,
+                              );
                               const isCurrent = activeJokiIndex === idx;
 
                               return (
@@ -611,7 +705,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                                   key={item.id}
                                   onClick={() => setActiveJokiIndex(idx)}
                                   className={`hover:bg-cyan-500/10 transition cursor-pointer ${
-                                    isCurrent ? "bg-cyan-500/15 dark:bg-cyan-500/20 font-medium" : ""
+                                    isCurrent
+                                      ? "bg-cyan-500/15 dark:bg-cyan-500/20 font-medium"
+                                      : ""
                                   }`}
                                 >
                                   <td className="py-2 px-2 text-center font-mono font-bold text-slate-400">
@@ -630,29 +726,34 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                                       {item.packageName}
                                     </div>
                                     <div className="text-[10px] font-mono font-bold text-cyan-600 dark:text-cyan-400">
-                                      {isWdl ? (
-                                        `W:${item.wdlRecord?.win ?? 0} D:${item.wdlRecord?.draw ?? 0} L:${item.wdlRecord?.loss ?? 0}`
-                                      ) : (
-                                        `${item.initialRating ?? '-'} ➔ ${item.targetRating ?? '-'} Pts`
-                                      )}
+                                      {isWdl
+                                        ? `W:${item.wdlRecord?.win ?? 0} D:${item.wdlRecord?.draw ?? 0} L:${item.wdlRecord?.loss ?? 0}`
+                                        : `${item.initialRating ?? "-"} ➔ ${item.targetRating ?? "-"} Pts`}
                                     </div>
                                   </td>
                                   <td className="py-2 px-2.5 whitespace-nowrap font-mono text-[11px] text-slate-700 dark:text-slate-200 font-semibold">
                                     {relDate}
                                   </td>
                                   <td className="py-2 px-2 text-center whitespace-nowrap">
-                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border inline-block ${
-                                      item.status === 'Sedang Proses'
-                                        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
-                                        : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                                    }`}>
+                                    <span
+                                      className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border inline-block ${
+                                        item.status === "Sedang Proses"
+                                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse"
+                                          : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                                      }`}
+                                    >
                                       {item.status}
                                     </span>
                                   </td>
                                   {isAdmin && (
-                                    <td className="py-2 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                                    <td
+                                      className="py-2 px-2 text-center"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
                                       <button
-                                        onClick={() => handleOpenUpdateModal(item)}
+                                        onClick={() =>
+                                          handleOpenUpdateModal(item)
+                                        }
                                         className="p-1 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/30 transition cursor-pointer"
                                         title="Edit data joki ini"
                                       >
@@ -697,7 +798,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                                   : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                               }`}
                             >
-                              {item.clientName.split(" ")[0]} ({formatRelativeJokiDate(item.date, item.completedAt)})
+                              {item.clientName.split(" ")[0]} (
+                              {formatRelativeJokiDate(
+                                item.date,
+                                item.completedAt,
+                              )}
+                              )
                             </button>
                           ))}
                         </div>
@@ -710,16 +816,24 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                             {currentJoki.clientName}
                           </span>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={`text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md font-bold border shrink-0 ${
-                              currentJoki.status === 'Sedang Proses'
-                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
-                                : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                            }`}>
-                              {currentJoki.status} • {formatRelativeJokiDate(currentJoki.date, currentJoki.completedAt)}
+                            <span
+                              className={`text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md font-bold border shrink-0 ${
+                                currentJoki.status === "Sedang Proses"
+                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse"
+                                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                              }`}
+                            >
+                              {currentJoki.status} •{" "}
+                              {formatRelativeJokiDate(
+                                currentJoki.date,
+                                currentJoki.completedAt,
+                              )}
                             </span>
                             {isAdmin && (
                               <button
-                                onClick={() => handleOpenUpdateModal(currentJoki)}
+                                onClick={() =>
+                                  handleOpenUpdateModal(currentJoki)
+                                }
                                 className="p-1 px-2 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-500/30 hover:bg-amber-500/30 transition flex items-center gap-1 cursor-pointer"
                                 title="Edit joki ini (skor, status, atau durasi)"
                               >
@@ -742,7 +856,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                         </div>
 
                         {/* Match Metric: W-D-L for Weekend Event OR Rating Points for Division */}
-                        {currentJoki.recordType === 'wdl' || currentJoki.wdlRecord || !currentJoki.initialRating ? (
+                        {currentJoki.recordType === "wdl" ||
+                        currentJoki.wdlRecord ||
+                        !currentJoki.initialRating ? (
                           <div className="bg-white/70 dark:bg-slate-950/60 p-2 sm:p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 w-full min-w-0">
                             <div className="flex items-center justify-between mb-1.5 px-0.5">
                               <span className="text-[10px] font-mono text-cyan-600 dark:text-cyan-400 font-bold uppercase tracking-wider">
@@ -758,7 +874,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                                   WIN (MENANG)
                                 </p>
                                 <p className="text-base sm:text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
-                                  {currentJoki.wdlRecord?.win ?? currentJoki.winStreak ?? 0}
+                                  {currentJoki.wdlRecord?.win ??
+                                    currentJoki.winStreak ??
+                                    0}
                                 </p>
                               </div>
                               <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
@@ -787,14 +905,20 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                                 Poin Awal
                               </p>
                               <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-slate-900 dark:text-slate-100 truncate">
-                                {currentJoki.initialRating} <span className="text-[10px] font-normal text-slate-400">Pts</span>
+                                {currentJoki.initialRating}{" "}
+                                <span className="text-[10px] font-normal text-slate-400">
+                                  Pts
+                                </span>
                               </p>
                             </div>
 
                             {/* Middle Diff + Progress Bar */}
                             <div className="flex flex-col items-center justify-center px-0.5 min-w-0">
                               <span className="text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold font-mono whitespace-nowrap">
-                                +{((currentJoki.targetRating || 0) - (currentJoki.initialRating || 0))} ⚡️
+                                +
+                                {(currentJoki.targetRating || 0) -
+                                  (currentJoki.initialRating || 0)}{" "}
+                                ⚡️
                               </span>
                               <div className="w-full max-w-[65px] sm:max-w-[85px] h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full my-1 overflow-hidden">
                                 <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-full animate-pulse"></div>
@@ -810,7 +934,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                                 Hasil Akhir
                               </p>
                               <p className="text-sm sm:text-base md:text-lg font-bold font-mono text-amber-500 dark:text-amber-300 truncate">
-                                {currentJoki.targetRating} <span className="text-[10px] font-normal">Pts</span>
+                                {currentJoki.targetRating}{" "}
+                                <span className="text-[10px] font-normal">
+                                  Pts
+                                </span>
                               </p>
                             </div>
                           </div>
@@ -824,7 +951,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                             className="text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                           >
                             <Table className="w-3 h-3" />
-                            <span>Lihat Tabel Lengkap (Maks 10 Joki Terakhir) &rarr;</span>
+                            <span>
+                              Lihat Tabel Lengkap (Maks 10 Joki Terakhir) &rarr;
+                            </span>
                           </button>
                         </div>
                       </div>
@@ -872,19 +1001,25 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   {/* Stats Footer */}
                   <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-1 text-center w-full min-w-0">
                     <div className="p-1.5 sm:p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 min-w-0">
-                      <p className="text-[9px] sm:text-[10px] text-slate-500 truncate">Ban Rate</p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 truncate">
+                        Ban Rate
+                      </p>
                       <p className="text-[11px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono truncate">
                         0.00% (Aman)
                       </p>
                     </div>
                     <div className="p-1.5 sm:p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 min-w-0">
-                      <p className="text-[9px] sm:text-[10px] text-slate-500 truncate">Tarif Mulai</p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 truncate">
+                        Tarif Mulai
+                      </p>
                       <p className="text-[11px] sm:text-xs font-bold text-cyan-600 dark:text-cyan-400 font-mono truncate">
                         Rp 700/pt
                       </p>
                     </div>
                     <div className="p-1.5 sm:p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 min-w-0">
-                      <p className="text-[9px] sm:text-[10px] text-slate-500 truncate">Success Rate</p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 truncate">
+                        Success Rate
+                      </p>
                       <p className="text-[11px] sm:text-xs font-extrabold text-amber-600 font-mono truncate">
                         100%
                       </p>
@@ -904,14 +1039,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">
-                  {modalMode === 'update'
+                  {modalMode === "update"
                     ? `Update Progres Joki: ${newJokiForm.clientName}`
-                    : 'Tambah Data Joki Baru'}
+                    : "Tambah Data Joki Baru"}
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  {modalMode === 'update'
-                    ? 'Ubah skor saat ini, perbarui W-D-L/poin, atau selesaikan status joki'
-                    : 'Tambahkan data joki baru ke etalase Data Joki Terakhir'}
+                  {modalMode === "update"
+                    ? "Ubah skor saat ini, perbarui W-D-L/poin, atau selesaikan status joki"
+                    : "Tambahkan data joki baru ke etalase Data Joki Terakhir"}
                 </p>
               </div>
               <button
@@ -1010,22 +1145,26 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setNewJokiForm({ ...newJokiForm, recordType: 'points' })}
+                    onClick={() =>
+                      setNewJokiForm({ ...newJokiForm, recordType: "points" })
+                    }
                     className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
-                      newJokiForm.recordType === 'points'
-                        ? 'bg-cyan-500 text-white border-cyan-500 shadow-sm'
-                        : 'bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                      newJokiForm.recordType === "points"
+                        ? "bg-cyan-500 text-white border-cyan-500 shadow-sm"
+                        : "bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300"
                     }`}
                   >
                     Rating Poin (Divisi 1-3)
                   </button>
                   <button
                     type="button"
-                    onClick={() => setNewJokiForm({ ...newJokiForm, recordType: 'wdl' })}
+                    onClick={() =>
+                      setNewJokiForm({ ...newJokiForm, recordType: "wdl" })
+                    }
                     className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
-                      newJokiForm.recordType === 'wdl'
-                        ? 'bg-cyan-500 text-white border-cyan-500 shadow-sm'
-                        : 'bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                      newJokiForm.recordType === "wdl"
+                        ? "bg-cyan-500 text-white border-cyan-500 shadow-sm"
+                        : "bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300"
                     }`}
                   >
                     W - D - L (Event Weekend)
@@ -1033,14 +1172,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 </div>
               </div>
 
-              {newJokiForm.recordType === 'wdl' ? (
+              {newJokiForm.recordType === "wdl" ? (
                 <div>
                   <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
                     Rekor Pertandingan Event (W - D - L)
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">Win (Menang)</span>
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">
+                        Win (Menang)
+                      </span>
                       <input
                         type="number"
                         min="0"
@@ -1055,7 +1196,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       />
                     </div>
                     <div>
-                      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 block mb-0.5">Draw (Seri)</span>
+                      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 block mb-0.5">
+                        Draw (Seri)
+                      </span>
                       <input
                         type="number"
                         min="0"
@@ -1070,7 +1213,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       />
                     </div>
                     <div>
-                      <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 block mb-0.5">Loss (Kalah)</span>
+                      <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 block mb-0.5">
+                        Loss (Kalah)
+                      </span>
                       <input
                         type="number"
                         min="0"
@@ -1133,7 +1278,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     type="text"
                     value={newJokiForm.duration}
                     onChange={(e) =>
-                      setNewJokiForm({ ...newJokiForm, duration: e.target.value })
+                      setNewJokiForm({
+                        ...newJokiForm,
+                        duration: e.target.value,
+                      })
                     }
                     placeholder="24 Jam / 1.5 Hari"
                     className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
@@ -1150,11 +1298,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       const val = e.target.value;
                       const now = new Date();
                       let target = now;
-                      if (val === 'Kemarin') {
-                        target = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
-                      } else if (val.includes('Hari Lalu')) {
+                      if (val === "Kemarin") {
+                        target = new Date(
+                          now.getTime() - 1 * 24 * 60 * 60 * 1000,
+                        );
+                      } else if (val.includes("Hari Lalu")) {
                         const days = parseInt(val, 10) || 2;
-                        target = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+                        target = new Date(
+                          now.getTime() - days * 24 * 60 * 60 * 1000,
+                        );
                       }
                       setNewJokiForm({
                         ...newJokiForm,
@@ -1188,7 +1340,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white font-bold shadow-md cursor-pointer transition"
                 >
-                  {modalMode === 'update' ? 'Simpan Pembaruan Joki' : 'Tambah ke Etalase'}
+                  {modalMode === "update"
+                    ? "Simpan Pembaruan Joki"
+                    : "Tambah ke Etalase"}
                 </button>
               </div>
             </form>

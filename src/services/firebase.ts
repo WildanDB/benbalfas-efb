@@ -4,6 +4,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  deleteDoc,
   getDocFromServer,
   onSnapshot,
   collection,
@@ -403,6 +404,29 @@ export const resetPromoSlotsCloud = async (): Promise<void> => {
   }
 };
 
+/**
+ * Reset slot referral di Cloud (Khusus Owner)
+ */
+export const resetReferralSlotsCloud = async (): Promise<void> => {
+  const db = getFirebaseDb();
+  if (!db) return;
+
+  try {
+    const promoRef = doc(db, PROMO_DOC_PATH.collection, PROMO_DOC_PATH.doc);
+    await setDoc(
+      promoRef,
+      {
+        claimedReferralSlots: 0,
+        referralLimit: 5,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn("Gagal reset referral di cloud:", err);
+  }
+};
+
 /* =========================================================================
    2. REAL-TIME DATA JOKI TERAKHIR (SHOWCASE ETALASE)
    ========================================================================= */
@@ -492,7 +516,8 @@ export const saveOrderToCloud = async (
 };
 
 /**
- * Berlangganan ke koleksi 'orders' secara Real-time (Untuk panel Owner/Spreadsheet)
+ * Berlangganan ke koleksi 'orders' secara Real-time (Untuk panel Owner/Database)
+ * Mengambil seluruh data pesanan langsung dari Firebase Firestore
  */
 export const subscribeToCloudOrders = (
   callback: (orders: SpreadsheetOrderRecord[]) => void
@@ -502,17 +527,20 @@ export const subscribeToCloudOrders = (
 
   try {
     const ordersCol = collection(db, "orders");
-    const q = query(ordersCol, orderBy("timestamp", "desc"));
     return onSnapshot(
-      q,
+      ordersCol,
       (snapshot) => {
         const records: SpreadsheetOrderRecord[] = [];
         snapshot.forEach((docSnap) => {
           records.push(docSnap.data() as SpreadsheetOrderRecord);
         });
-        if (records.length > 0) {
-          callback(records);
-        }
+        // Urutkan pesanan terbaru di paling atas secara instan di JS
+        records.sort((a, b) => {
+          const timeA = (a as any).createdAtServer || a.timestamp || "";
+          const timeB = (b as any).createdAtServer || b.timestamp || "";
+          return timeB.localeCompare(timeA);
+        });
+        callback(records);
       },
       (err) => {
         console.warn("Firebase orders subscription error:", err);
@@ -547,6 +575,23 @@ export const updateOrderStatusCloud = async (
     return true;
   } catch (err) {
     console.warn("Gagal update status order di cloud:", err);
+    return false;
+  }
+};
+
+/**
+ * Menghapus pesanan dari Cloud Firebase
+ */
+export const deleteOrderFromCloud = async (orderId: string): Promise<boolean> => {
+  const db = getFirebaseDb();
+  if (!db) return false;
+
+  try {
+    const orderDocRef = doc(db, "orders", orderId);
+    await deleteDoc(orderDocRef);
+    return true;
+  } catch (err) {
+    console.warn("Gagal menghapus order dari cloud:", err);
     return false;
   }
 };

@@ -9,7 +9,7 @@ import { Footer } from './components/Footer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { SpreadsheetModal } from './components/SpreadsheetModal';
 import { OrderType, GamingPlatform } from './types';
-import { Calculator, Sparkles, MessageCircle, Flame, ShieldAlert, LogOut, RotateCcw, FileSpreadsheet } from 'lucide-react';
+import { Calculator, Sparkles, MessageCircle, Flame, ShieldAlert, LogOut, RotateCcw, Database } from 'lucide-react';
 import { APP_CONFIG } from './config/constants';
 import { getPromoStatus, resetPromoSlots, getReferralStatus, resetReferralSlots } from './utils/pricing';
 import { subscribeToCloudPromo } from './services/firebase';
@@ -84,6 +84,21 @@ export function App() {
     const url = new URL(window.location.href);
     url.searchParams.delete('admin');
     window.history.replaceState({}, '', url.pathname);
+  };
+
+  const handleOpenOwnerPortal = () => {
+    if (isAdmin) {
+      setIsSpreadsheetOpen(true);
+      return;
+    }
+    const entered = prompt('Masukkan Password Owner untuk membuka Database Cloud:');
+    if (entered === 'benbalfas123') {
+      localStorage.setItem('benbalfas_is_admin', 'true');
+      setIsAdmin(true);
+      setIsSpreadsheetOpen(true);
+    } else if (entered !== null) {
+      alert('Password salah. Akses khusus Owner Ben Balfas.');
+    }
   };
 
   useEffect(() => {
@@ -183,11 +198,11 @@ export function App() {
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => setIsSpreadsheetOpen(true)}
-              className="flex items-center gap-1 bg-slate-950 text-emerald-400 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold hover:bg-slate-900 transition border border-emerald-500/30"
-              title="Buka data spreadsheet dan kelola pesanan masuk"
+              className="flex items-center gap-1.5 bg-slate-950 text-cyan-400 px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-extrabold hover:bg-slate-900 transition border border-cyan-500/30 cursor-pointer shadow-sm"
+              title="Buka Database Cloud Firebase dan kelola pesanan masuk"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Spreadsheet & Joki</span>
+              <Database className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Database & Pesanan</span>
             </button>
             <button
               onClick={handleResetPromo}
@@ -306,6 +321,7 @@ export function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         onOpenCheckout={() => handleOpenCheckout()}
+        onOpenOwnerPanel={handleOpenOwnerPortal}
       />
 
       {/* Checkout Modal */}

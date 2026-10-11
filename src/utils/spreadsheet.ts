@@ -404,28 +404,24 @@ export const addOrderToRecentJoki = (record: SpreadsheetOrderRecord): void => {
 
 /**
  * Sinkronisasi lengkap saat tombol "Konfirmasi Pesanan" ditekan:
- * 1. Simpan ke Database Spreadsheet Lokal
- * 2. Integrasikan ke "Data Joki Terakhir" (Local & Cloud)
- * 3. Simpan ke Firebase Cloud Orders (Real-time di semua device)
- * 4. Kirim ke Webhook Google Apps Script (jika ada)
- * 5. Kirim notifikasi instan ke Bot Telegram Admin (Real-time)
+ * 1. Simpan ke Database Lokal
+ * 2. Integrasikan ke "Data Joki Terakhir" (Local & Cloud Firebase)
+ * 3. Simpan ke Firebase Cloud Database (Real-time di semua device)
+ * 4. Kirim notifikasi instan ke Bot Telegram Admin (Real-time)
  */
 export const syncOrderToSpreadsheetAndRecentJoki = async (
   record: SpreadsheetOrderRecord
 ): Promise<void> => {
-  // 1. Simpan ke spreadsheet lokal
+  // 1. Simpan ke database lokal
   saveSpreadsheetRecord(record);
 
-  // 2. Integrasikan ke Data Joki Terakhir
+  // 2. Integrasikan ke Data Joki Terakhir (Realtime Showcase)
   addOrderToRecentJoki(record);
 
-  // 3. Simpan ke Firebase Cloud Database (Real-time)
+  // 3. Simpan ke Firebase Cloud Database (Real-time di seluruh device)
   saveOrderToCloud(record).catch(() => {});
 
-  // 4. Kirim ke Google Apps Script (Background)
-  sendToGoogleSheetWebhook(record).catch(() => {});
-
-  // 5. Kirim notifikasi instan ke Bot Telegram Admin
+  // 4. Kirim notifikasi instan ke Bot Telegram Admin
   sendTelegramOrderNotification(record).catch((err) => {
     console.warn('Telegram background dispatch warning:', err);
   });

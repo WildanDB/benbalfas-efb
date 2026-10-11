@@ -220,6 +220,7 @@ import {
   claimPromoSlotCloud,
   claimReferralSlotCloud,
   resetPromoSlotsCloud,
+  resetReferralSlotsCloud,
 } from "../services/firebase";
 
 export function claimPromoSlot(): number {
@@ -398,6 +399,6 @@ export function resetReferralSlots(): void {
   try {
     window.dispatchEvent(new CustomEvent('benbalfas_promo_updated'));
   } catch {}
-  resetPromoSlotsCloud().catch(() => {});
+  resetReferralSlotsCloud().catch(() => {});
 }
 

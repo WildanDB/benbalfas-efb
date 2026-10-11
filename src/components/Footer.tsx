@@ -6,9 +6,10 @@ import { TikTokIcon, YouTubeIcon, InstagramIcon } from "./SocialIcons";
 interface FooterProps {
   onNavigate: (tab: "home" | "joki" | "trophy") => void;
   onOpenCheckout: () => void;
+  onOpenOwnerPanel?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenOwnerPanel }) => {
   return (
     <footer className="bg-slate-900 dark:bg-[#05070a] border-t border-slate-800 text-slate-400 text-xs transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
@@ -133,6 +134,17 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   Trophy Room & Portofolio
                 </button>
               </li>
+              {onOpenOwnerPanel && (
+                <li>
+                  <button
+                    onClick={onOpenOwnerPanel}
+                    className="hover:text-amber-400 text-slate-500 transition flex items-center gap-1.5 cursor-pointer pt-1"
+                    title="Akses khusus Owner Ben Balfas untuk mengelola Database Cloud"
+                  >
+                    <span>🔒 Portal Owner (Database Cloud)</span>
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
 

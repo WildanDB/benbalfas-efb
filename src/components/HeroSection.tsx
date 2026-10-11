@@ -16,6 +16,7 @@ import { INITIAL_RECENT_JOKIS } from "../data/mockData";
 import {
   subscribeToCloudRecentJokis,
   saveRecentJokisCloud,
+  updateOrderStatusCloud,
 } from "../services/firebase";
 
 interface HeroSectionProps {
@@ -199,12 +200,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       // Push ke Firebase Cloud Realtime
       saveRecentJokisCloud(updated).catch(() => {});
 
-      // Sinkronisasikan juga ke Spreadsheet records jika ada ID pesanan yang cocok
+      // Sinkronisasikan juga ke Database pesanan jika ada ID pesanan yang cocok
+      const cleanOrderId = editingJokiId.replace("rj-", "");
+      if (newJokiForm.status) {
+        updateOrderStatusCloud(cleanOrderId, newJokiForm.status as any).catch(() => {});
+      }
+
       try {
         const rawSpreadsheet = localStorage.getItem("benbalfas_spreadsheet_records");
         if (rawSpreadsheet) {
           const sheetRecords = JSON.parse(rawSpreadsheet);
-          const cleanOrderId = editingJokiId.replace("rj-", "");
           const updatedSheets = sheetRecords.map((sr: any) => {
             if (sr.orderId === cleanOrderId || sr.clientName === newJokiForm.clientName) {
               return {
